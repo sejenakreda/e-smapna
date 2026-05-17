@@ -17,30 +17,38 @@ export default defineConfig(({mode}) => {
           maximumFileSizeToCacheInBytes: 5 * 1024 * 1024 // 5MB limit
         },
         manifest: {
+          id: 'com.smapna.hub',
+          start_url: '/',
           name: 'E-SMAPNA HUB',
           short_name: 'SMAPNA',
           description: 'Sistem Informasi Sekolah Terpadu SMAPNA',
           theme_color: '#3b82f6',
           background_color: '#ffffff',
           display: 'standalone',
+          orientation: 'portrait',
           icons: [
             {
-              src: 'https://raw.githubusercontent.com/google/material-design-icons/master/png/action/settings/gradient_1000/2x/outline_settings_white_48dp.png',
+              src: 'https://sekolah.data.kemdikbud.go.id/index.php/chome/get_foto_sekolah/SMAS%20PGRI%20NARINGGUL/30',
               sizes: '192x192',
-              type: 'image/png'
+              type: 'image/png',
+              purpose: 'any'
             },
             {
-              src: 'https://raw.githubusercontent.com/google/material-design-icons/master/png/action/settings/gradient_1000/2x/outline_settings_white_48dp.png',
+              src: 'https://sekolah.data.kemdikbud.go.id/index.php/chome/get_foto_sekolah/SMAS%20PGRI%20NARINGGUL/30',
               sizes: '512x512',
-              type: 'image/png'
+              type: 'image/png',
+              purpose: 'any'
+            },
+            {
+              src: 'https://sekolah.data.kemdikbud.go.id/index.php/chome/get_foto_sekolah/SMAS%20PGRI%20NARINGGUL/30',
+              sizes: '512x512',
+              type: 'image/png',
+              purpose: 'maskable'
             }
           ]
         }
       })
     ],
-    define: {
-      'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-    },
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),

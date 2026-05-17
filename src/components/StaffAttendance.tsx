@@ -120,15 +120,19 @@ export const StaffAttendance: React.FC = () => {
   const startCamera = async () => {
     setMessage('Meminta izin kamera...');
     try {
+      if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+        throw new Error("Kamera hanya dapat digunakan di koneksi aman (HTTPS). Silakan akses versi HTTPS dari situs ini.");
+      }
+
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         throw new Error("Browser Anda tidak mendukung akses kamera atau fitur ini diblokir. Coba buka di Tab Baru.");
       }
 
       const stream = await navigator.mediaDevices.getUserMedia({ 
         video: { 
-          facingMode: 'user',
-          width: { ideal: 640 },
-          height: { ideal: 480 }
+          facingMode: { ideal: 'user' },
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
         } 
       });
 
