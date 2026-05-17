@@ -226,12 +226,18 @@ export const Springboard: React.FC = () => {
     }
 
     const handleBeforeInstallPrompt = (e: any) => {
+      console.log('beforeinstallprompt event fired');
       e.preventDefault();
       setDeferredPrompt(e);
       setShowInstallBanner(true);
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    // Also check if already installed
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+       setShowInstallBanner(false);
+    }
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
