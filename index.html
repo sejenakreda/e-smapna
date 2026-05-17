@@ -11,7 +11,12 @@
     <meta name="format-detection" content="telephone=no">
     <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/google/material-design-icons/master/png/action/account_balance/gradient_1000/2x/outline_account_balance_white_48dp.png" />
     <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/google/material-design-icons/master/png/action/account_balance/gradient_1000/2x/outline_account_balance_white_48dp.png" />
-    <link rel="manifest" href="/manifest.webmanifest">
+    <link rel="manifest" href="/manifest.json">
+    <script>
+      window.addEventListener('beforeinstallprompt', (e) => {
+        window.deferredPrompt = e;
+      });
+    </script>
     <title>E-SMAPNA HUB</title>
   </head>
   <body>

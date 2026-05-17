@@ -18,33 +18,35 @@ export default defineConfig(({mode}) => {
           globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
           cleanupOutdatedCaches: true
         },
+        manifestFilename: 'manifest.json',
         manifest: {
-          id: 'com.smapna.hub.v1',
+          id: 'com.smapna.hub.app.v1',
           name: 'E-SMAPNA HUB',
           short_name: 'SMAPNA',
           description: 'Sistem Informasi Sekolah Terpadu SMAPNA',
           theme_color: '#2563eb',
           background_color: '#ffffff',
           display: 'standalone',
+          display_override: ['window-controls-overlay', 'standalone'],
           orientation: 'portrait',
           start_url: '/',
           scope: '/',
           categories: ['education', 'productivity'],
           icons: [
             {
-              src: 'https://raw.githubusercontent.com/google/material-design-icons/master/png/action/account_balance/gradient_1000/2x/outline_account_balance_white_48dp.png',
+              src: 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png',
               sizes: '192x192',
               type: 'image/png',
               purpose: 'any'
             },
             {
-              src: 'https://raw.githubusercontent.com/google/material-design-icons/master/png/action/account_balance/gradient_1000/2x/outline_account_balance_white_48dp.png',
+              src: 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png',
               sizes: '512x512',
               type: 'image/png',
               purpose: 'any'
             },
             {
-              src: 'https://raw.githubusercontent.com/google/material-design-icons/master/png/action/account_balance/gradient_1000/2x/outline_account_balance_white_48dp.png',
+              src: 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png',
               sizes: '512x512',
               type: 'image/png',
               purpose: 'maskable'
@@ -52,11 +54,20 @@ export default defineConfig(({mode}) => {
           ],
           screenshots: [
             {
-              src: 'https://raw.githubusercontent.com/google/material-design-icons/master/png/action/account_balance/gradient_1000/2x/outline_account_balance_white_48dp.png',
+              src: 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png',
               sizes: '512x512',
               type: 'image/png',
               form_factor: 'narrow',
               label: 'Beranda Aplikasi E-SMAPNA'
+            }
+          ],
+          shortcuts: [
+            {
+              name: 'Presensi Pegawai',
+              short_name: 'Presensi',
+              description: 'Lakukan presensi kehadiran GTK',
+              url: '/absensi',
+              icons: [{ src: 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png', sizes: '192x192' }]
             }
           ]
         }

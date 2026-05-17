@@ -124,8 +124,11 @@ export const StaffAttendance: React.FC = () => {
     const bindStream = async () => {
       if (cameraActive && stream && videoRef.current) {
         try {
+          console.log("Binding stream to video element...");
           videoRef.current.srcObject = stream;
+          // Important: explicitly call play() and wait for it
           await videoRef.current.play();
+          console.log("Video playing successfully");
           if (active) {
             setStatus('detecting');
             setMessage('Mencari wajah...');
@@ -134,7 +137,7 @@ export const StaffAttendance: React.FC = () => {
           console.error("Video play error:", err);
           if (active) {
             setStatus('error');
-            setMessage('Gagal memutar video. Silakan coba lagi.');
+            setMessage('Gagal memutar video. Silakan tekan tombol "Refresh Kamera" di bawah atau pastikan izin kamera diberikan.');
           }
         }
       }
@@ -371,6 +374,7 @@ export const StaffAttendance: React.FC = () => {
                  muted 
                  playsInline
                  className="w-full h-full object-cover scale-x-[-1]"
+                 style={{ minHeight: '100%', minWidth: '100%' }}
                />
                <canvas ref={canvasRef} className="absolute inset-0 pointer-events-none" />
                
@@ -411,12 +415,23 @@ export const StaffAttendance: React.FC = () => {
                      </div>
                      <h2 className="text-xl font-black">Kendala Teknis</h2>
                      <p className="text-slate-400 text-sm leading-relaxed">{message}</p>
-                     <button 
-                        onClick={() => window.open(window.location.href, '_blank')}
-                        className="px-6 py-3 bg-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-white/20 transition-colors"
-                     >
-                        Buka di Tab Baru
-                     </button>
+                     <div className="flex gap-2 justify-center">
+                       <button 
+                          onClick={() => {
+                            stopCamera();
+                            startCamera();
+                          }}
+                          className="px-6 py-3 bg-blue-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-700 transition-colors"
+                       >
+                          Refresh Kamera
+                       </button>
+                       <button 
+                          onClick={() => window.open(window.location.href, '_blank')}
+                          className="px-6 py-3 bg-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-white/20 transition-colors"
+                       >
+                          Buka di Tab Baru
+                       </button>
+                     </div>
                   </div>
                 ) : (
                   <div className="space-y-4">

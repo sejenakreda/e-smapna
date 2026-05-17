@@ -221,7 +221,11 @@ export const Springboard: React.FC = () => {
 
   useEffect(() => {
     // Check if already installed
-    if (window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone) {
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
+                        (window.navigator as any).standalone ||
+                        document.referrer.includes('android-app://');
+    
+    if (isStandalone) {
       setShowInstallBanner(false);
       return;
     }
@@ -229,11 +233,24 @@ export const Springboard: React.FC = () => {
     const handleBeforeInstallPrompt = (e: any) => {
       console.log('beforeinstallprompt event fired');
       e.preventDefault();
+      // Store event and show UI
       setDeferredPrompt(e);
-      setShowInstallBanner(true);
+      
+      // Don't show if user already dismissed in this session
+      if (!sessionStorage.getItem('pwa_dismissed')) {
+        setShowInstallBanner(true);
+      }
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    
+    // Fallback: If event fired before effect, check if window already has it (some browsers)
+    if ((window as any).deferredPrompt) {
+      setDeferredPrompt((window as any).deferredPrompt);
+      if (!sessionStorage.getItem('pwa_dismissed')) {
+        setShowInstallBanner(true);
+      }
+    }
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
@@ -241,16 +258,20 @@ export const Springboard: React.FC = () => {
   }, []);
 
   const handleInstallClick = async () => {
-    if (!deferredPrompt) return;
+    if (!deferredPrompt) {
+      alert("Aplikasi ini sudah terinstal atau browser Anda tidak mendukung tombol instalasi otomatis. Gunakan menu 'Tambahkan ke Layar Utama' secara manual.");
+      return;
+    }
     deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === 'accepted') {
-      console.log('User accepted the install prompt');
-    } else {
-      console.log('User dismissed the install prompt');
-    }
+    console.log(`User response to install prompt: ${outcome}`);
     setDeferredPrompt(null);
     setShowInstallBanner(false);
+  };
+
+  const handleDismissBanner = () => {
+    setShowInstallBanner(false);
+    sessionStorage.setItem('pwa_dismissed', 'true');
   };
 
   useEffect(() => {
@@ -445,7 +466,7 @@ export const Springboard: React.FC = () => {
                     Instal Sekarang
                   </button>
                   <button 
-                    onClick={() => setShowInstallBanner(false)}
+                    onClick={handleDismissBanner}
                     className="px-6 py-2.5 rounded-2xl bg-white/20 text-white font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all"
                   >
                     Nanti Saja
