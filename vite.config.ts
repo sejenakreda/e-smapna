@@ -14,11 +14,12 @@ export default defineConfig(({mode}) => {
         registerType: 'autoUpdate',
         includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
         workbox: {
-          maximumFileSizeToCacheInBytes: 5 * 1024 * 1024 // 5MB limit
+          maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5MB limit
+          globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
+          cleanupOutdatedCaches: true
         },
         manifest: {
-          id: 'com.smapna.hub',
-          start_url: '/',
+          id: 'com.smapna.hub.v1',
           name: 'E-SMAPNA HUB',
           short_name: 'SMAPNA',
           description: 'Sistem Informasi Sekolah Terpadu SMAPNA',
@@ -26,7 +27,9 @@ export default defineConfig(({mode}) => {
           background_color: '#ffffff',
           display: 'standalone',
           orientation: 'portrait',
+          start_url: '/',
           scope: '/',
+          categories: ['education', 'productivity'],
           icons: [
             {
               src: 'https://sekolah.data.kemdikbud.go.id/index.php/chome/get_foto_sekolah/SMAS%20PGRI%20NARINGGUL/30',
@@ -45,6 +48,15 @@ export default defineConfig(({mode}) => {
               sizes: '512x512',
               type: 'image/png',
               purpose: 'maskable'
+            }
+          ],
+          screenshots: [
+            {
+              src: 'https://sekolah.data.kemdikbud.go.id/index.php/chome/get_foto_sekolah/SMAS%20PGRI%20NARINGGUL/30',
+              sizes: '512x512',
+              type: 'image/png',
+              form_factor: 'narrow',
+              label: 'Beranda Aplikasi E-SMAPNA'
             }
           ]
         }

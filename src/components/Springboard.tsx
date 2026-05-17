@@ -221,7 +221,8 @@ export const Springboard: React.FC = () => {
 
   useEffect(() => {
     // Check if already installed
-    if (window.matchMedia('(display-mode: standalone)').matches) {
+    if (window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone) {
+      setShowInstallBanner(false);
       return;
     }
 
@@ -233,11 +234,6 @@ export const Springboard: React.FC = () => {
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-
-    // Also check if already installed
-    if (window.matchMedia('(display-mode: standalone)').matches) {
-       setShowInstallBanner(false);
-    }
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);

@@ -120,16 +120,36 @@ export const StaffAttendance: React.FC = () => {
 
   // Attach stream to video when active
   useEffect(() => {
-    if (cameraActive && stream && videoRef.current) {
-      videoRef.current.srcObject = stream;
-    }
+    let active = true;
+    const bindStream = async () => {
+      if (cameraActive && stream && videoRef.current) {
+        try {
+          videoRef.current.srcObject = stream;
+          await videoRef.current.play();
+          if (active) {
+            setStatus('detecting');
+            setMessage('Mencari wajah...');
+          }
+        } catch (err) {
+          console.error("Video play error:", err);
+          if (active) {
+            setStatus('error');
+            setMessage('Gagal memutar video. Silakan coba lagi.');
+          }
+        }
+      }
+    };
+    
+    bindStream();
+    return () => { active = false; };
   }, [cameraActive, stream]);
 
   const startCamera = async () => {
     setMessage('Meminta izin kamera...');
+    setStatus('idle'); // Clear previous error
     try {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        throw new Error("Izin kamera diblokir atau browser tidak mendukung akses kamera di mode ini. Pastikan Anda menggunakan HTTPS.");
+        throw new Error("Browser Anda memblokir kamera atau tidak mendukung fitur ini. Pastikan Anda menggunakan Chrome/Safari dan koneksi HTTPS.");
       }
 
       if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
@@ -146,8 +166,6 @@ export const StaffAttendance: React.FC = () => {
 
       setStream(mediaStream);
       setCameraActive(true);
-      setStatus('detecting');
-      setMessage('Mencari wajah...');
     } catch (err: any) {
       console.error("Camera error:", err);
       setStatus('error');
