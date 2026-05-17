@@ -398,7 +398,13 @@ export const StaffAttendance: React.FC = () => {
                 {isAlreadyCheckedOut ? (
                   <div className="space-y-4">
                      <h2 className="text-2xl font-black">Absensi Selesai</h2>
-                     <p className="text-slate-400 text-sm leading-relaxed">Terima kasih atas tugas hari ini. Anda sudah melakukan Check-Out.</p>
+                     <p className="text-slate-400 text-sm leading-relaxed mb-6">Terima kasih atas tugas hari ini. Anda sudah melakukan Check-Out.</p>
+                     <Link 
+                       to="/absensi"
+                       className="px-8 py-3 bg-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-white/10 hover:bg-white/20 transition-all inline-block"
+                     >
+                       Lihat Riwayat Log
+                     </Link>
                   </div>
                 ) : !inRange ? (
                   <div className="space-y-4 px-6">
@@ -425,22 +431,29 @@ export const StaffAttendance: React.FC = () => {
                        >
                           Refresh Kamera
                        </button>
-                       <button 
-                          onClick={() => window.open(window.location.href, '_blank')}
+                       <Link 
+                          to="/absensi"
                           className="px-6 py-3 bg-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-white/20 transition-colors"
                        >
-                          Buka di Tab Baru
-                       </button>
+                          Cek Log
+                       </Link>
                      </div>
                   </div>
                 ) : (
                   <div className="space-y-4">
                      <h2 className="text-2xl font-black">Siap Absensi</h2>
                      <p className="text-slate-400 text-sm leading-relaxed">Silakan klik tombol di bawah untuk mulai pemindaian wajah.</p>
+                     <Link 
+                       to="/absensi"
+                       className="text-[10px] text-blue-400 font-bold hover:underline"
+                     >
+                       Lihat riwayat log absensi saya
+                     </Link>
                   </div>
                 )}
              </div>
            )}
+
 
            {/* Feedback UI */}
            <AnimatePresence>

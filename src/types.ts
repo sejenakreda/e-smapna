@@ -140,6 +140,8 @@ export interface AppConfig {
   accreditation: string;
   opLicenseNumber: string;
   establishedYear: string;
+  kopSuratUrl?: string;
+  pwaIconUrl?: string;
   
   // Academic
   semester: string;

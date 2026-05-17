@@ -92,7 +92,7 @@ async function startServer() {
                 console.log("Initializing default app config...");
                 try {
                   await configRef.set({
-                    appName: 'E-SMAPNA HUB',
+                    appName: 'E-SMAPNA',
                     schoolLogo: 'logo_smapna.png',
                     academicYear: '2023/2024 Genap',
                     schoolName: 'SMAS PGRI Naringgul',
@@ -102,6 +102,7 @@ async function startServer() {
                     attendanceStartTime: '07:00',
                     attendanceEndTime: '14:00',
                     lateTolerance: 30,
+                    pwaIconUrl: 'https://drive.google.com/file/d/1uOKSjAJH-I9U1O78Cd5Jp0Nrjkj9RWyX/view?usp=sharing',
                     updatedAt: FieldValue.serverTimestamp()
                   });
                 } catch (setErr: any) {
@@ -124,6 +125,115 @@ async function startServer() {
   // API Routes
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok" });
+  });
+
+  // Dynamic PWA Manifest
+  app.get("/manifest.json", async (req, res) => {
+    const { adminDb: db } = getAdmin();
+    let appConfig = {
+      appName: 'E-SMAPNA',
+      pwaIconUrl: '/icon.png'
+    };
+
+    if (db) {
+      try {
+        const configDoc = await db.collection('app_config').doc('main').get();
+        if (configDoc.exists) {
+          const data = configDoc.data();
+          if (data.appName) appConfig.appName = data.appName;
+          if (data.pwaIconUrl) {
+            let iconUrl = data.pwaIconUrl;
+            if (iconUrl.includes('drive.google.com')) {
+              const fileId = iconUrl.match(/\/d\/([a-zA-Z0-9_-]+)/)?.[1] || 
+                           iconUrl.match(/id=([a-zA-Z0-9_-]+)/)?.[1];
+              if (fileId) {
+                // Use the thumbnail link which acts as a direct image link for PWA
+                iconUrl = `https://lh3.googleusercontent.com/d/${fileId}`;
+              }
+            }
+            appConfig.pwaIconUrl = iconUrl;
+          }
+        }
+      } catch (e) {
+        console.warn("Failed to fetch manifest config from DB:", e);
+      }
+    }
+
+    const manifest = {
+      id: 'com.smapna.app.v1',
+      name: appConfig.appName,
+      short_name: appConfig.appName,
+      description: 'Sistem Informasi Sekolah Terpadu SMAPNA',
+      theme_color: '#2563eb',
+      background_color: '#ffffff',
+      display: 'standalone',
+      orientation: 'portrait',
+      start_url: '/',
+      scope: '/',
+      categories: ['education', 'productivity'],
+      icons: [
+        {
+          src: appConfig.pwaIconUrl,
+          sizes: '72x72',
+          type: 'image/png'
+        },
+        {
+          src: appConfig.pwaIconUrl,
+          sizes: '96x96',
+          type: 'image/png'
+        },
+        {
+          src: appConfig.pwaIconUrl,
+          sizes: '128x128',
+          type: 'image/png'
+        },
+        {
+          src: appConfig.pwaIconUrl,
+          sizes: '144x144',
+          type: 'image/png'
+        },
+        {
+          src: appConfig.pwaIconUrl,
+          sizes: '152x152',
+          type: 'image/png'
+        },
+        {
+          src: appConfig.pwaIconUrl,
+          sizes: '180x180',
+          type: 'image/png'
+        },
+        {
+          src: appConfig.pwaIconUrl,
+          sizes: '192x192',
+          type: 'image/png',
+          purpose: 'any'
+        },
+        {
+          src: appConfig.pwaIconUrl,
+          sizes: '512x512',
+          type: 'image/png',
+          purpose: 'any'
+        },
+        {
+          src: appConfig.pwaIconUrl,
+          sizes: '512x512',
+          type: 'image/png',
+          purpose: 'maskable'
+        }
+      ],
+      shortcuts: [
+        {
+          name: appConfig.appName,
+          short_name: appConfig.appName,
+          description: 'Sistem Informasi Sekolah Terpadu SMAPNA',
+          url: '/',
+          icons: [{ src: appConfig.pwaIconUrl, sizes: '192x192' }]
+        }
+      ]
+    };
+
+    res.header("Content-Type", "application/json");
+    res.send(JSON.stringify(manifest, null, 2));
   });
 
   // Create User in Firebase Auth

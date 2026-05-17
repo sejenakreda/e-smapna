@@ -10,7 +10,7 @@ interface ConfigContextType {
 }
 
 const DEFAULT_CONFIG: AppConfig = {
-  appName: 'E-SMAPNA HUB',
+  appName: 'E-SMAPNA',
   schoolLogo: 'logo_smapna.png',
   academicYear: '2025/2026 Genap',
   language: 'Bahasa Indonesia',
@@ -38,6 +38,13 @@ const DEFAULT_CONFIG: AppConfig = {
   deviceVerification: true,
   maintenanceMode: false,
   appVersion: 'v4.2.0-core',
+  attendanceRadius: 100,
+  schoolLatitude: -7.3332,
+  schoolLongitude: 107.3284,
+  attendanceStartTime: '07:00',
+  attendanceEndTime: '14:00',
+  lateTolerance: 30,
+  pwaIconUrl: 'https://drive.google.com/file/d/1uOKSjAJH-I9U1O78Cd5Jp0Nrjkj9RWyX/view?usp=sharing',
   updatedAt: new Date()
 };
 

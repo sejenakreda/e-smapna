@@ -15,8 +15,9 @@ import {
   Download,
   Info
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { cn } from '../lib/utils';
+import { useAuth } from '../hooks/useAuth';
 
 interface Document {
   id: string;
@@ -36,8 +37,12 @@ const SAMPLE_DOCS: Document[] = [
 ];
 
 export const DownloadCenter: React.FC = () => {
+  const { profile } = useAuth();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
+
+  const canGenerateReport = profile?.roles.some(r => ['admin', 'kepsek', 'kurikulum', 'operator'].includes(r));
 
   const categories = [
     { id: 'all', label: 'Semua', icon: <FileText size={16} /> },
@@ -155,20 +160,25 @@ export const DownloadCenter: React.FC = () => {
         </div>
 
         {/* Generate Report Placeholder */}
-        <div className="mt-12 p-8 bg-indigo-900 rounded-[48px] relative overflow-hidden shadow-2xl shadow-indigo-500/20">
-           <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
-              <Printer size={120} />
-           </div>
-           <div className="relative z-10">
-              <h3 className="text-xl font-black text-white mb-2">Buat Laporan Baru</h3>
-              <p className="text-indigo-200 text-xs font-bold leading-relaxed mb-8 max-w-[80%]">
-                 Butuh laporan instan? Sistem dapat mengenerate laporan kustom sesuai rentang waktu yang Anda tentukan.
-              </p>
-              <button className="px-8 py-4 bg-white text-indigo-900 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl hover:bg-indigo-50 transition-colors">
-                 Mulai Generate
-              </button>
-           </div>
-        </div>
+        {canGenerateReport && (
+          <div className="mt-12 p-8 bg-indigo-900 rounded-[48px] relative overflow-hidden shadow-2xl shadow-indigo-500/20">
+             <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
+                <Printer size={120} />
+             </div>
+             <div className="relative z-10">
+                <h3 className="text-xl font-black text-white mb-2">Buat Laporan Presensi</h3>
+                <p className="text-indigo-200 text-xs font-bold leading-relaxed mb-8 max-w-[80%]">
+                   Butuh laporan instan? Sistem dapat mengenerate laporan kustom sesuai rentang waktu yang Anda tentukan di Portal Presensi.
+                </p>
+                <button 
+                  onClick={() => navigate('/absensi')}
+                  className="px-8 py-4 bg-white text-indigo-900 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl hover:bg-indigo-50 transition-colors"
+                >
+                   Buka Portal Presensi
+                </button>
+             </div>
+          </div>
+        )}
 
         {/* Privacy Note */}
         <div className="mt-8 flex items-start gap-3 px-4">

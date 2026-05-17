@@ -33,6 +33,7 @@ import { ArrowLeft, LayoutGrid } from 'lucide-react';
 
 import { TUPortal } from './components/TUPortal';
 import { ProtectedRoute } from './components/ProtectedRoute'; 
+import PWAInstallPrompt from './components/PWAInstallPrompt';
 
 const PlaceholderPage: React.FC<{ title: string; subtitle: string }> = ({ title, subtitle }) => (
   <div className="min-h-screen bg-mesh pb-32">
@@ -65,7 +66,8 @@ export default function App() {
     <ConfigProvider>
       <AuthProvider>
         <BrowserRouter>
-        <Routes>
+          <PWAInstallPrompt />
+          <Routes>
           <Route path="/login" element={<Login />} />
           
           <Route path="/" element={

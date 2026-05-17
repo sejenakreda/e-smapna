@@ -75,7 +75,7 @@ interface SettingCategory {
 }
 
 const DEFAULT_CONFIG: AppConfig = {
-  appName: 'E-SMAPNA HUB',
+  appName: 'E-SMAPNA',
   schoolLogo: 'logo_smapna.png',
   academicYear: '2023/2024 Genap',
   language: 'Bahasa Indonesia',
@@ -89,6 +89,7 @@ const DEFAULT_CONFIG: AppConfig = {
   accreditation: 'A',
   opLicenseNumber: '421.3/2849-DPK/2016',
   establishedYear: '1984',
+  kopSuratUrl: '',
   semester: 'Genap',
   curriculum: 'Kurikulum Merdeka',
   majors: 'MIPA, IPS, Bahasa',
@@ -109,6 +110,7 @@ const DEFAULT_CONFIG: AppConfig = {
   attendanceStartTime: '07:00',
   attendanceEndTime: '14:00',
   lateTolerance: 30,
+  pwaIconUrl: 'https://drive.google.com/file/d/1uOKSjAJH-I9U1O78Cd5Jp0Nrjkj9RWyX/view?usp=sharing',
   updatedAt: new Date()
 };
 
@@ -235,6 +237,7 @@ export const AdminSettings: React.FC = () => {
         { id: 'att-late', label: 'Toleransi Telat (Menit)', key: 'lateTolerance', value: String(config.lateTolerance || 0), type: 'text', icon: <Zap size={18} />, color: 'bg-amber-600' },
         { id: 'principal', label: 'Kepala Sekolah', key: 'principalName', value: config.principalName, type: 'text', icon: <UserCheck size={18} />, color: 'bg-indigo-600' },
         { id: 'accreditation', label: 'Akreditasi', key: 'accreditation', value: config.accreditation, type: 'text', icon: <Award size={18} />, color: 'bg-amber-500' },
+        { id: 'kop-surat', label: 'Kop Surat (URL Gambar)', key: 'kopSuratUrl', value: config.kopSuratUrl || '', type: 'text', icon: <FileText size={18} />, color: 'bg-blue-400' },
         { id: 'op-license', label: 'No. Izin Operasional', key: 'opLicenseNumber', value: config.opLicenseNumber, type: 'text', icon: <FileText size={18} />, color: 'bg-slate-500' },
         { id: 'est-year', label: 'Tahun Berdiri', key: 'establishedYear', value: config.establishedYear, type: 'text', icon: <Calendar size={18} />, color: 'bg-blue-400' },
       ]
@@ -274,6 +277,7 @@ export const AdminSettings: React.FC = () => {
       label: 'Pengaturan Sistem',
       items: [
         { id: 'maintenance', label: 'Maintenance Mode', key: 'maintenanceMode', value: config.maintenanceMode, type: 'toggle', icon: <Settings size={18} />, color: 'bg-red-600' },
+        { id: 'pwa-icon', label: 'Ikon PWA (Instalasi HP)', key: 'pwaIconUrl', value: config.pwaIconUrl || '/icon.png', type: 'text', icon: <Smartphone size={18} />, color: 'bg-indigo-600' },
         { id: 'app-version', label: 'Versi Aplikasi', key: 'appVersion', value: config.appVersion, type: 'text', icon: <Shield size={18} />, color: 'bg-emerald-600' },
       ]
     }

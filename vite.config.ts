@@ -21,7 +21,7 @@ export default defineConfig(({mode}) => {
         manifestFilename: 'manifest.json',
         manifest: {
           id: 'com.smapna.hub.app.v1',
-          name: 'E-SMAPNA HUB',
+          name: 'E-SMAPNA',
           short_name: 'SMAPNA',
           description: 'Sistem Informasi Sekolah Terpadu SMAPNA',
           theme_color: '#2563eb',
@@ -34,19 +34,19 @@ export default defineConfig(({mode}) => {
           categories: ['education', 'productivity'],
           icons: [
             {
-              src: 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png',
+              src: '/icon.png',
               sizes: '192x192',
               type: 'image/png',
               purpose: 'any'
             },
             {
-              src: 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png',
+              src: '/icon.png',
               sizes: '512x512',
               type: 'image/png',
               purpose: 'any'
             },
             {
-              src: 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png',
+              src: '/icon.png',
               sizes: '512x512',
               type: 'image/png',
               purpose: 'maskable'
@@ -54,7 +54,7 @@ export default defineConfig(({mode}) => {
           ],
           screenshots: [
             {
-              src: 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png',
+              src: '/icon.png',
               sizes: '512x512',
               type: 'image/png',
               form_factor: 'narrow',
@@ -63,11 +63,11 @@ export default defineConfig(({mode}) => {
           ],
           shortcuts: [
             {
-              name: 'Presensi Pegawai',
-              short_name: 'Presensi',
-              description: 'Lakukan presensi kehadiran GTK',
-              url: '/absensi',
-              icons: [{ src: 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png', sizes: '192x192' }]
+              name: 'E-SMAPNA',
+              short_name: 'Sistem Informasi Sekolah Terpadu SMAPNA',
+              description: 'Sistem Informasi Sekolah Terpadu SMAPNA',
+              url: '/',
+              icons: [{ src: '/icon.png', sizes: '192x192' }]
             }
           ]
         }

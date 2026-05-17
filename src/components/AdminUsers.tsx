@@ -50,6 +50,7 @@ export const AdminUsers: React.FC = () => {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterTab, setFilterTab] = useState<'all' | 'gtk' | 'siswa'>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
@@ -301,10 +302,21 @@ export const AdminUsers: React.FC = () => {
     }
   };
 
-  const filteredUsers = users.filter(u => 
-    u.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    u.email.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredUsers = users.filter(u => {
+    const matchesSearch = u.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                         u.email.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    if (!matchesSearch) return false;
+
+    if (filterTab === 'gtk') {
+      return u.roles?.some(r => ['teacher', 'kepsek', 'staff_tu', 'kepala_tu', 'bendahara', 'operator', 'bk', 'pembina', 'waka_kurikulum', 'waka_kesiswaan', 'waka_sarpras', 'waka_humas', 'guru'].includes(r));
+    }
+    if (filterTab === 'siswa') {
+      return u.roles?.includes('student') || u.roles?.includes('parent');
+    }
+    
+    return true;
+  });
 
   const stats = {
     total: users.length,
@@ -366,6 +378,36 @@ export const AdminUsers: React.FC = () => {
           </button>
         }
       />
+
+      <div className="flex bg-slate-100 dark:bg-slate-900/50 p-1.5 rounded-[24px] mb-8 border border-white/10">
+        <button 
+          onClick={() => setFilterTab('all')}
+          className={cn(
+            "flex-1 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all",
+            filterTab === 'all' ? "bg-white dark:bg-slate-800 text-blue-600 soft-shadow" : "text-slate-400"
+          )}
+        >
+          Semua User
+        </button>
+        <button 
+          onClick={() => setFilterTab('gtk')}
+          className={cn(
+            "flex-1 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all",
+            filterTab === 'gtk' ? "bg-white dark:bg-slate-800 text-blue-600 soft-shadow" : "text-slate-400"
+          )}
+        >
+          User GTK
+        </button>
+        <button 
+          onClick={() => setFilterTab('siswa')}
+          className={cn(
+            "flex-1 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all",
+            filterTab === 'siswa' ? "bg-white dark:bg-slate-800 text-blue-600 soft-shadow" : "text-slate-400"
+          )}
+        >
+          User Siswa
+        </button>
+      </div>
 
       <div className="space-y-4">
         {loading ? (
