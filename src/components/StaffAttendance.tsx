@@ -30,6 +30,7 @@ export const StaffAttendance: React.FC = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
+  const [stream, setStream] = useState<MediaStream | null>(null);
   const [loading, setLoading] = useState(true);
   const [modelsLoaded, setModelsLoaded] = useState(false);
   const [cameraActive, setCameraActive] = useState(false);
@@ -117,18 +118,25 @@ export const StaffAttendance: React.FC = () => {
     return R * c;
   };
 
+  // Attach stream to video when active
+  useEffect(() => {
+    if (cameraActive && stream && videoRef.current) {
+      videoRef.current.srcObject = stream;
+    }
+  }, [cameraActive, stream]);
+
   const startCamera = async () => {
     setMessage('Meminta izin kamera...');
     try {
-      if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-        throw new Error("Kamera hanya dapat digunakan di koneksi aman (HTTPS). Silakan akses versi HTTPS dari situs ini.");
-      }
-
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        throw new Error("Browser Anda tidak mendukung akses kamera atau fitur ini diblokir. Coba buka di Tab Baru.");
+        throw new Error("Izin kamera diblokir atau browser tidak mendukung akses kamera di mode ini. Pastikan Anda menggunakan HTTPS.");
       }
 
-      const stream = await navigator.mediaDevices.getUserMedia({ 
+      if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+        throw new Error("Kamera hanya dapat digunakan di koneksi aman (HTTPS).");
+      }
+
+      const mediaStream = await navigator.mediaDevices.getUserMedia({ 
         video: { 
           facingMode: { ideal: 'user' },
           width: { ideal: 1280 },
@@ -136,28 +144,21 @@ export const StaffAttendance: React.FC = () => {
         } 
       });
 
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        setCameraActive(true);
-        setStatus('detecting');
-        setMessage('Mencari wajah...');
-      }
+      setStream(mediaStream);
+      setCameraActive(true);
+      setStatus('detecting');
+      setMessage('Mencari wajah...');
     } catch (err: any) {
       console.error("Camera error:", err);
       setStatus('error');
       setMessage(`Gagal akses kamera: ${err.message || 'Izin ditolak'}`);
-      
-      // Jika di iframe, sarankan buka tab baru
-      if (window.self !== window.top) {
-        alert("PENTING: Jika kamera tidak muncul, silakan klik tombol 'Buka di Tab Baru' di pojok kanan atas aplikasi ini.");
-      }
     }
   };
 
   const stopCamera = () => {
-    if (videoRef.current && videoRef.current.srcObject) {
-      const stream = videoRef.current.srcObject as MediaStream;
+    if (stream) {
       stream.getTracks().forEach(track => track.stop());
+      setStream(null);
       setCameraActive(false);
     }
   };
