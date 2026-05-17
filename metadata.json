@@ -1,0 +1,6 @@
+{
+  "name": "E-SMAPNA HUB",
+  "description": "Premium school management ecosystem for SMAS PGRI Naringgul. Includes TU Portal with integrated Digital Archive for Teachers and Staff, and high-performance management dashboards.",
+  "requestFramePermissions": ["camera", "geolocation"],
+  "majorCapabilities": []
+}

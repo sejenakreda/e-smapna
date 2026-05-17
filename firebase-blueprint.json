@@ -1,0 +1,309 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Represents a user in the school system",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "roles": { 
+          "type": "array", 
+          "items": { "type": "string", "enum": ["admin", "kepsek", "wakasek", "teacher", "staff_tu", "bendahara", "operator", "bk", "pembina", "student", "parent"] } 
+        },
+        "classId": { "type": "string" },
+        "status": { "type": "string" },
+        "angkatan": { "type": "string" },
+        "faceDescriptor": { "type": "array", "items": { "type": "number" } },
+        "faceDescriptorPending": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "createdBy": { "type": "string" },
+        "updatedBy": { "type": "string" }
+      },
+      "required": ["uid", "name", "email", "roles"]
+    },
+    "Class": {
+      "title": "Class",
+      "description": "A school class or grade",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "teacherId": { "type": "string" }
+      },
+      "required": ["id", "name"]
+    },
+    "Attendance": {
+      "title": "Attendance",
+      "description": "Daily attendance record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "classId": { "type": "string" },
+        "records": { "type": "object" }
+      },
+      "required": ["date", "classId", "records"]
+    },
+    "AppConfig": {
+      "title": "Application Configuration",
+      "description": "Global school and system settings",
+      "type": "object",
+      "properties": {
+        "appName": { "type": "string" },
+        "schoolName": { "type": "string" },
+        "academicYear": { "type": "string" },
+        "semester": { "type": "string" },
+        "npsnCode": { "type": "string" },
+        "principalName": { "type": "string" },
+        "theme": { "type": "string" },
+        "darkMode": { "type": "boolean" },
+        "maintenanceMode": { "type": "boolean" },
+        "attendanceRadius": { "type": "number", "description": "Radius in meters" },
+        "schoolLatitude": { "type": "number" },
+        "schoolLongitude": { "type": "number" },
+        "attendanceStartTime": { "type": "string", "description": "Format HH:mm" },
+        "attendanceEndTime": { "type": "string", "description": "Format HH:mm" },
+        "lateTolerance": { "type": "number", "description": "Minutes allowed after start time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "StaffAttendance": {
+      "title": "Staff Attendance",
+      "description": "Daily attendance for employees",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "date": { "type": "string" },
+        "checkIn": { 
+          "type": "object",
+          "properties": {
+            "time": { "type": "string" },
+            "lat": { "type": "number" },
+            "lng": { "type": "number" },
+            "status": { "type": "string", "enum": ["on-time", "late"] }
+          }
+        },
+        "checkOut": {
+          "type": "object",
+          "properties": {
+            "time": { "type": "string" },
+            "lat": { "type": "number" },
+            "lng": { "type": "number" }
+          }
+        }
+      }
+    },
+    "Student": {
+      "title": "Student",
+      "description": "Detailed student information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "nisn": { "type": "string" },
+        "gender": { "type": "string", "enum": ["L", "P"] },
+        "birthDate": { "type": "string" },
+        "address": { "type": "string" },
+        "status": { "type": "string", "enum": ["Aktif", "Cuti", "Lulus", "Keluar"] }
+      }
+    },
+    "GTK": {
+      "title": "GTK",
+      "description": "Detailed GTK (Guru & Tenaga Kependidikan) information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "nuptk": { "type": "string" },
+        "nip": { "type": "string" },
+        "gender": { "type": "string", "enum": ["L", "P"] },
+        "position": { "type": "string" },
+        "type": { "type": "string", "enum": ["PTK", "Tendik"] },
+        "status": { "type": "string", "enum": ["ASN", "Honorer", "P3K"] }
+      }
+    },
+    "Subject": {
+      "title": "Subject",
+      "description": "Educational subject or course",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "name": { "type": "string" },
+        "code": { "type": "string" }
+      },
+      "required": ["uid", "name"]
+    },
+    "Schedule": {
+      "title": "Schedule",
+      "description": "Weekly class schedule",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "day": { "type": "string", "enum": ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"] },
+        "startTime": { "type": "string" },
+        "endTime": { "type": "string" },
+        "subjectId": { "type": "string" },
+        "classId": { "type": "string" },
+        "teacherId": { "type": "string" }
+      },
+      "required": ["uid", "day", "startTime", "endTime", "subjectId", "classId", "teacherId"]
+    },
+    "TeachingJournal": {
+      "title": "Teaching Journal",
+      "description": "Logs of lessons delivered by teachers",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "date": { "type": "string" },
+        "teacherId": { "type": "string" },
+        "classId": { "type": "string" },
+        "subjectId": { "type": "string" },
+        "topic": { "type": "string" },
+        "summary": { "type": "string" },
+        "attendanceCount": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "SystemLog": {
+      "title": "System Log",
+      "description": "Records major system actions like mutations, imports, etc.",
+      "type": "object",
+      "properties": {
+        "type": { "type": "string" },
+        "studentId": { "type": "string" },
+        "studentName": { "type": "string" },
+        "mutationType": { "type": "string" },
+        "reason": { "type": "string" },
+        "mutationDate": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "performedBy": { "type": "string" }
+      },
+      "required": ["type", "timestamp"]
+    },
+    "ArchiveItem": {
+      "title": "Archive Item",
+      "description": "Represents a file or folder in the digital archive",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "name": { "type": "string" },
+        "type": { "type": "string", "enum": ["file", "folder"] },
+        "parentId": { "type": ["string", "null"] },
+        "gtkId": { "type": "string" },
+        "url": { "type": "string" },
+        "size": { "type": "number" },
+        "mimeType": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "createdBy": { "type": "string" },
+        "category": { "type": "string", "enum": ["GTK", "KEUANGAN", "SISWA", "SK", "LAINNYA"] }
+      },
+      "required": ["uid", "name", "type", "createdAt", "createdBy"]
+    },
+    "MailRecord": {
+      "title": "Mail Agenda Record",
+      "description": "Records of incoming and outgoing mail",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "type": { "type": "string", "enum": ["IN", "OUT"] },
+        "noSurat": { "type": "string" },
+        "perihal": { "type": "string" },
+        "pengirim": { "type": "string" },
+        "penerima": { "type": "string" },
+        "tanggal": { "type": "string" },
+        "keterangan": { "type": "string" },
+        "kategori": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "type", "noSurat", "perihal"]
+    },
+    "QuestionTemplate": {
+      "title": "Question Template",
+      "description": "Persistent format for question conversion",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "headers": { "type": "array", "items": { "type": "string" } },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "updatedBy": { "type": "string" }
+      },
+      "required": ["headers"]
+    },
+    "AuditLog": {
+      "title": "Audit Log",
+      "description": "System activity logs for TU and Management",
+      "type": "object",
+      "properties": {
+        "type": { "type": "string" },
+        "action": { "type": "string" },
+        "message": { "type": "string" },
+        "user": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      }
+    }
+  },
+  "firestore": {
+    "archives": {
+      "schema": "ArchiveItem",
+      "description": "Global storage for digital documents and folders"
+    },
+    "mail_agenda": {
+      "schema": "MailRecord",
+      "description": "Database for incoming and outgoing mail agenda"
+    },
+    "audit_logs": {
+      "schema": "AuditLog",
+      "description": "Audit logs for system activities"
+    },
+    "system_logs": {
+      "schema": "SystemLog",
+      "description": "General system activity logs"
+    },
+    "users": {
+      "schema": "User",
+      "description": "User profiles and roles"
+    },
+    "students": {
+      "schema": "Student",
+      "description": "Detailed student database"
+    },
+    "gtk": {
+      "schema": "GTK",
+      "description": "Detailed GTK database"
+    },
+    "subjects": {
+      "schema": "Subject",
+      "description": "Database of school subjects"
+    },
+    "schedules": {
+      "schema": "Schedule",
+      "description": "Weekly lesson schedules"
+    },
+    "teaching_journals": {
+      "schema": "TeachingJournal",
+      "description": "Teacher lesson delivery logs"
+    },
+    "classes": {
+      "schema": "Class",
+      "description": "Classroom data"
+    },
+    "attendance": {
+      "schema": "Attendance",
+      "description": "Daily attendance logs for students"
+    },
+    "staff_attendance": {
+      "schema": "StaffAttendance",
+      "description": "Daily attendance for employees"
+    },
+    "app_config": {
+      "schema": "AppConfig",
+      "description": "Global application configuration"
+    },
+    "question_templates": {
+      "schema": "QuestionTemplate",
+      "description": "Stored headers for question conversion format"
+    }
+  }
+}

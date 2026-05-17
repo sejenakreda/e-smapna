@@ -1,0 +1,91 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Space Grotesk", sans-serif;
+  
+  --color-primary: #2563eb;
+  --color-secondary: #6366f1;
+  --color-accent: #0ea5e9;
+  --color-surface: #f8fafc;
+
+  --color-bg-primary: #F8FAFC;
+  --color-bg-secondary: #FFFFFF;
+}
+
+@variant dark (&:where(.dark, .dark *));
+
+body {
+  @apply font-sans text-slate-900 antialiased bg-bg-primary selection:bg-blue-100 selection:text-blue-900 transition-colors duration-300;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.dark body {
+  @apply bg-[#0F172A] text-slate-200;
+  --color-bg-primary: #0F172A;
+  --color-bg-secondary: #1E293B;
+}
+
+h1, h2, h3, .font-display {
+  @apply font-display tracking-tight text-slate-900 dark:text-white;
+}
+
+/* Glassmorphism */
+.glass {
+  @apply bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border border-white/40 dark:border-white/10 shadow-[0_8px_32px_0_rgba(31,38,135,0.07)];
+}
+
+.glass-dark {
+  @apply bg-slate-900/80 backdrop-blur-2xl border border-white/10 shadow-2xl;
+}
+
+.glass-blue {
+  @apply bg-blue-600/10 backdrop-blur-md border border-white/20;
+}
+
+/* Android-style Shadows */
+.soft-shadow {
+  box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.05);
+}
+
+.premium-shadow {
+  box-shadow: 
+    0 4px 6px -1px rgba(0, 0, 0, 0.05),
+    0 10px 15px -3px rgba(0, 0, 0, 0.1),
+    0 20px 25px -5px rgba(0, 0, 0, 0.05);
+}
+
+/* Animations */
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+  100% { transform: translateY(0px); }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+/* Custom Gradients */
+.bg-mesh {
+  background-color: #f8fafc;
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(37, 99, 235, 0.1) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, rgba(99, 102, 241, 0.1) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(14, 165, 233, 0.1) 0px, transparent 50%),
+    radial-gradient(at 0% 100%, rgba(79, 70, 229, 0.1) 0px, transparent 50%);
+}
+
+.bottom-nav-indicator {
+  @apply absolute bottom-0 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-blue-600 rounded-full mb-1.5 shadow-[0_0_10px_rgba(37,99,235,0.8)];
+}
+
+/* Scrollbar Hide */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

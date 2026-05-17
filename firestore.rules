@@ -1,0 +1,229 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.get('email', '') == 'redasejenak@gmail.com' ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('roles', []).hasAny(['admin']))
+      );
+    }
+
+    function isManagement() {
+      return isSignedIn() && (
+        isAdmin() || (
+          exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('roles', []).hasAny(['kepsek', 'wakasek', 'operator', 'staff_tu', 'kepala_tu'])
+        )
+      );
+    }
+
+    function isMaster() {
+      return isSignedIn() && request.auth.token.get('email', '') == 'redasejenak@gmail.com';
+    }
+
+    function isTeacher() {
+      return isSignedIn() && (
+        isManagement() || (
+          exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('roles', []).hasAny(['teacher', 'bk', 'pembina', 'waka_kurikulum', 'waka_kesiswaan', 'waka_sarpras', 'waka_humas'])
+        )
+      );
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // --- Users Collection ---
+    match /users/{userId} {
+      function isValidUser(data) {
+        let hasAuth = data.keys().hasAll(['uid', 'name', 'email']) &&
+               data.uid is string &&
+               data.uid.size() <= 128 &&
+               data.name is string && data.name.size() <= 100 &&
+               data.email is string && data.email.size() <= 100;
+        
+        // At least one of roles or role must exist
+        let hasRole = data.keys().hasAny(['roles', 'role']);
+        
+        // Optional fields validation
+        let optStatus = !data.keys().hasAny(['status']) || (data.status is string && data.status.size() <= 50);
+        let optAngkatan = !data.keys().hasAny(['angkatan']) || (data.angkatan is string && data.angkatan.size() <= 20);
+        let face = (!data.keys().hasAny(['faceDescriptor']) || (data.faceDescriptor is list && data.faceDescriptor.size() <= 200));
+        
+        return hasAuth && hasRole && optStatus && optAngkatan && face;
+      }
+
+      // Allow users to read their own data, and management to read all
+      allow read: if isSignedIn() && (isOwner(userId) || isManagement() || isMaster());
+      
+      // Allow list for teachers to see each other, management and master
+      allow list: if isTeacher() || isManagement() || isMaster();
+      
+      // Allow creation if self (for initial registration) or admin
+      allow create: if isSignedIn() && (isOwner(userId) || isAdmin() || isMaster()) && isValidUser(request.resource.data);
+      
+      // Only Admin/Master can change roles. Users and Management can update non-roles data.
+      allow update: if (isAdmin() || isMaster()) || (
+        (isOwner(userId) || isManagement()) && 
+        request.resource.data.get('roles', resource.data.get('roles', [])) == resource.data.get('roles', []) && 
+        request.resource.data.get('role', resource.data.get('role', '')) == resource.data.get('role', '') &&
+        isValidUser(request.resource.data)
+      );
+
+      // Allow deletion only for admins/master
+      allow delete: if isAdmin() || isMaster();
+    }
+
+    // --- App Config Collection ---
+    match /app_config/{docId} {
+      allow read: if true;
+      allow write: if isAdmin() || isMaster();
+    }
+
+    // --- Classes Collection ---
+    match /classes/{classId} {
+      allow read: if isSignedIn(); // All students/teachers can see classes
+      allow write: if isManagement();
+    }
+
+    // --- Attendance Collection ---
+    match /attendance/{atId} {
+      allow read: if isSignedIn() && (isTeacher() || (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('classId', null) != null));
+      allow write: if isTeacher() || isManagement();
+    }
+
+    // --- Staff Attendance Collection ---
+    match /staff_attendance/{atId} {
+      function isValidStaffAttendance(data) {
+        return data.uid is string && data.uid.size() <= 128 &&
+               data.date is string && data.date.size() <= 20;
+      }
+
+      allow read: if isSignedIn() && (isOwner(resource.data.uid) || isTeacher() || isManagement() || isMaster());
+      allow list: if isSignedIn() && (isManagement() || isMaster() || (resource.data.uid == request.auth.uid)); 
+      allow create: if isSignedIn() && isValidStaffAttendance(request.resource.data) && (request.resource.data.uid == request.auth.uid || isManagement());
+      allow update: if isSignedIn() && isValidStaffAttendance(request.resource.data) && (resource.data.uid == request.auth.uid || isManagement());
+    }
+
+    // --- Settings Collection ---
+    match /settings/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // --- Question Templates ---
+    match /question_templates/{templateId} {
+      allow read: if isSignedIn();
+      allow write: if isTeacher() || isManagement();
+    }
+
+    // --- Students Collection ---
+    match /students/{studentId} {
+      function isValidStudent(data) {
+        return data.uid is string && data.uid.size() <= 128 &&
+               data.nisn is string && data.nisn.size() <= 20;
+      }
+      allow read: if isSignedIn() && (isOwner(studentId) || isManagement() || isMaster());
+      allow list: if isManagement() || isMaster();
+      allow write: if isManagement() || isMaster();
+    }
+
+    // --- GTK Collection ---
+    match /gtk/{gtkId} {
+      function isValidGTK(data) {
+        return data.uid is string && data.uid.size() <= 128 &&
+               data.nip is string && data.nip.size() <= 30;
+      }
+      allow read: if isSignedIn() && (isOwner(gtkId) || isManagement() || isMaster());
+      allow list: if isManagement() || isMaster();
+      allow write: if isManagement() || isMaster();
+    }
+
+    // --- System Logs Collection ---
+    match /system_logs/{logId} {
+      function isValidLog(data) {
+        return data.type is string && 
+               data.type.size() <= 100 &&
+               (data.timestamp == request.time || data.timestamp is timestamp);
+      }
+      allow read: if isManagement() || isMaster();
+      allow create: if (isManagement() || isMaster()) && isValidLog(request.resource.data);
+      allow update, delete: if false;
+    }
+
+    // --- Archives Collection ---
+    match /archives/{archiveId} {
+      function isValidArchive(data) {
+        return data.uid is string && data.uid.size() <= 128 &&
+               data.name is string && data.name.size() <= 200 &&
+               data.type in ['file', 'folder'] &&
+               (data.parentId == null || data.parentId is string) &&
+               data.createdAt != null;
+      }
+      
+      // Management can manage all. GTK can read if it's their file.
+      allow read: if isManagement() || isMaster() || (isSignedIn() && resource.data.gtkId == request.auth.uid);
+      allow list: if isManagement() || isMaster() || (isSignedIn() && resource.data.gtkId == request.auth.uid);
+      allow write: if isManagement() || isMaster();
+    }
+
+    // --- Mail Agenda Collection ---
+    match /mail_agenda/{mailId} {
+      function isValidMail(data) {
+        return data.type in ['IN', 'OUT'] &&
+               data.noSurat is string &&
+               data.perihal is string;
+      }
+      allow read: if isManagement() || isMaster();
+      allow write: if (isManagement() || isMaster()) && isValidMail(request.resource.data);
+    }
+
+    // --- Academic Collections ---
+    match /subjects/{subjectId} {
+      allow read: if isSignedIn();
+      allow write: if isManagement() || isMaster();
+    }
+
+    match /schedules/{scheduleId} {
+      allow read: if isSignedIn();
+      allow write: if isManagement() || isMaster();
+    }
+
+    match /teaching_journals/{journalId} {
+      function isValidJournal(data) {
+         return data.teacherId is string &&
+                data.classId is string &&
+                data.subjectId is string;
+      }
+      allow read: if isTeacher() || isManagement() || isMaster();
+      allow write: if (isManagement() || isMaster()) || (isSignedIn() && request.resource.data.teacherId == request.auth.uid && isValidJournal(request.resource.data));
+    }
+
+    // --- Audit Logs Collection ---
+    match /audit_logs/{logId} {
+      allow read: if isManagement() || isMaster();
+      allow create: if isSignedIn(); 
+      allow update, delete: if false;
+    }
+  }
+}
