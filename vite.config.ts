@@ -22,10 +22,11 @@ export default defineConfig(({mode}) => {
           name: 'E-SMAPNA HUB',
           short_name: 'SMAPNA',
           description: 'Sistem Informasi Sekolah Terpadu SMAPNA',
-          theme_color: '#3b82f6',
+          theme_color: '#2563eb',
           background_color: '#ffffff',
           display: 'standalone',
           orientation: 'portrait',
+          scope: '/',
           icons: [
             {
               src: 'https://sekolah.data.kemdikbud.go.id/index.php/chome/get_foto_sekolah/SMAS%20PGRI%20NARINGGUL/30',
