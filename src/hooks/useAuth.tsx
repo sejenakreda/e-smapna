@@ -159,7 +159,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     profile,
     loading,
     isAdmin: profile?.roles?.includes('admin') || profile?.email === 'redasejenak@gmail.com' || false,
-    isTeacher: profile?.roles?.some(r => ['teacher', 'kepsek', 'wakasek', 'bk', 'pembina', 'waka_kurikulum', 'waka_kesiswaan', 'waka_sarpras', 'waka_humas'].includes(r)) || false,
+    isTeacher: profile?.roles?.some(r => ['teacher', 'kepsek', 'wakasek', 'bk', 'pembina', 'wakakur', 'wakasis', 'wakasar', 'wakahum'].includes(r)) || false,
     isStudent: profile?.roles?.includes('student') || false,
     isParent: profile?.roles?.includes('parent') || false,
     login,

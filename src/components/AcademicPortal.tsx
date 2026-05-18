@@ -28,6 +28,8 @@ import { collection, query, where, onSnapshot, addDoc, serverTimestamp, doc, set
 import { db } from '../lib/firebase';
 import { OperationType, handleFirestoreError } from '../lib/firebase';
 
+import { AcademicCalendar } from './AcademicCalendar';
+
 interface Subject {
   uid: string;
   name: string;
@@ -61,10 +63,11 @@ export const AcademicPortal: React.FC = () => {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [journals, setJournals] = useState<TeachingJournal[]>([]);
+  const [events, setEvents] = useState<any[]>([]);
   const [classes, setClasses] = useState<any[]>([]);
   const [gtkList, setGtkList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [viewMode, setViewMode] = useState<'OVERVIEW' | 'SUBJECTS' | 'SCHEDULE' | 'JOURNALS'>('OVERVIEW');
+  const [viewMode, setViewMode] = useState<'OVERVIEW' | 'SUBJECTS' | 'SCHEDULE' | 'JOURNALS' | 'CALENDAR'>('OVERVIEW');
 
   // Modals state
   const [isSubjectModalOpen, setIsSubjectModalOpen] = useState(false);
@@ -87,6 +90,10 @@ export const AcademicPortal: React.FC = () => {
       setJournals(snap.docs.map(d => ({ ...d.data(), uid: d.id })) as TeachingJournal[]);
     });
 
+    const unsubEvents = onSnapshot(query(collection(db, 'academic_events'), orderBy('date', 'asc')), (snap) => {
+      setEvents(snap.docs.map(d => ({ ...d.data(), uid: d.id })));
+    });
+
     const unsubClasses = onSnapshot(collection(db, 'classes'), (snap) => {
       setClasses(snap.docs.map(d => ({ ...d.data(), uid: d.id })));
     });
@@ -100,6 +107,7 @@ export const AcademicPortal: React.FC = () => {
       unsubSubjects();
       unsubSchedules();
       unsubJournals();
+      unsubEvents();
       unsubClasses();
       unsubGtk();
     };
@@ -165,9 +173,16 @@ export const AcademicPortal: React.FC = () => {
              Jurnal
            </button>
            <button 
+             onClick={() => setViewMode('CALENDAR')}
+             className={cn("px-4 h-12 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all", viewMode === 'CALENDAR' ? "bg-indigo-600 text-white shadow-lg" : "bg-white text-slate-400 border border-slate-100")}
+           >
+             Kalender
+           </button>
+           <button 
              onClick={() => {
                if (viewMode === 'SUBJECTS') setIsSubjectModalOpen(true);
                else if (viewMode === 'SCHEDULE') setIsScheduleModalOpen(true);
+               else if (viewMode === 'CALENDAR') { /* No modal for calendar here */ }
                else setIsJournalModalOpen(true);
              }}
              className="w-12 h-12 bg-blue-600 rounded-2xl shadow-lg shadow-blue-500/20 flex items-center justify-center text-white active:scale-95 transition-all"
@@ -245,27 +260,32 @@ export const AcademicPortal: React.FC = () => {
                      </div>
                      
                      <div className="space-y-4">
-                        {[
-                           { date: '21 Mei', event: 'Ujian Akhir Semester', type: 'INFO' },
-                           { date: '24 Mei', event: 'Rapat Pleno Kelulusan', type: 'ALERT' },
-                           { date: '01 Jun', event: 'Hari Lahir Pancasila (Libur)', type: 'HOLIDAY' }
-                        ].map((ev, i) => (
+                        {events.length === 0 ? (
+                           <p className="text-[10px] font-black text-slate-300 uppercase py-4">Belum ada agenda</p>
+                        ) : events.filter(e => {
+                           const d = new Date(e.date);
+                           const now = new Date();
+                           return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+                        }).slice(0, 4).map((ev, i) => (
                            <div key={i} className="flex gap-4 group cursor-pointer hover:translate-x-2 transition-transform">
-                              <div className="text-[10px] font-black text-slate-400 uppercase tracking-tighter w-12 pt-1">{ev.date}</div>
+                              <div className="text-[10px] font-black text-slate-400 uppercase tracking-tighter w-12 pt-1">{new Date(ev.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}</div>
                               <div className="flex-1">
-                                 <p className="text-xs font-bold text-slate-700 dark:text-white group-hover:text-indigo-600 transition-colors uppercase tracking-tight leading-tight">{ev.event}</p>
+                                 <p className="text-xs font-bold text-slate-700 dark:text-white group-hover:text-indigo-600 transition-colors uppercase tracking-tight leading-tight">{ev.title}</p>
                                  <div className={cn(
                                     "w-12 h-1 mt-1.5 rounded-full",
-                                    ev.type === 'INFO' ? "bg-blue-400" : ev.type === 'ALERT' ? "bg-orange-400" : "bg-rose-400"
+                                    ev.type === 'EVENT' ? "bg-blue-400" : ev.type === 'MEETING' ? "bg-orange-400" : ev.type === 'HOLIDAY' ? "bg-rose-400" : "bg-emerald-400"
                                  )} />
                               </div>
                            </div>
                         ))}
                      </div>
                      
-                     <button className="w-full mt-8 h-12 border-2 border-dashed border-slate-100 dark:border-slate-700 rounded-2xl text-[10px] font-black text-slate-400 uppercase tracking-widest hover:border-indigo-200 hover:text-indigo-600 transition-all">
-                        Lihat Agenda Lengkap
-                     </button>
+                      <button 
+                        onClick={() => setViewMode('CALENDAR')}
+                        className="w-full mt-8 h-12 border-2 border-dashed border-slate-100 dark:border-slate-700 rounded-2xl text-[10px] font-black text-slate-400 uppercase tracking-widest hover:border-indigo-200 hover:text-indigo-600 transition-all"
+                      >
+                         Lihat Agenda Lengkap
+                      </button>
                   </div>
                </section>
             </div>
@@ -325,6 +345,12 @@ export const AcademicPortal: React.FC = () => {
                  })}
               </div>
            </section>
+        )}
+
+        {viewMode === 'CALENDAR' && (
+           <div className="-mt-10">
+              <AcademicCalendar />
+           </div>
         )}
       </motion.div>
 
@@ -391,6 +417,14 @@ const SubjectModal: React.FC<{ isOpen: boolean; onClose: () => void; item?: any;
     try {
       const docRef = item ? doc(db, 'subjects', item.uid) : doc(collection(db, 'subjects'));
       await setDoc(docRef, { ...formData, uid: docRef.id }, { merge: true });
+      
+      await addDoc(collection(db, 'audit_logs'), {
+        type: 'ACADEMIC',
+        action: item ? 'UPDATE_SUBJECT' : 'CREATE_SUBJECT',
+        message: `${item ? 'Update' : 'Tambah'} mapel: ${formData.name}`,
+        timestamp: serverTimestamp()
+      });
+
       onSuccess();
     } catch (err) {
       handleFirestoreError(err, item ? OperationType.UPDATE : OperationType.CREATE, 'subjects');
@@ -440,6 +474,14 @@ const ScheduleModal: React.FC<{ isOpen: boolean; onClose: () => void; item?: any
     try {
       const docRef = item ? doc(db, 'schedules', item.uid) : doc(collection(db, 'schedules'));
       await setDoc(docRef, { ...formData, uid: docRef.id }, { merge: true });
+      
+      await addDoc(collection(db, 'audit_logs'), {
+        type: 'ACADEMIC',
+        action: item ? 'UPDATE_SCHEDULE' : 'CREATE_SCHEDULE',
+        message: `${item ? 'Update' : 'Tambah'} jadwal: ${formData.day} (${formData.startTime}-${formData.endTime})`,
+        timestamp: serverTimestamp()
+      });
+
       onSuccess();
     } catch (err) {
       handleFirestoreError(err, item ? OperationType.UPDATE : OperationType.CREATE, 'schedules');
@@ -510,7 +552,7 @@ const ScheduleModal: React.FC<{ isOpen: boolean; onClose: () => void; item?: any
 
 const JournalModal: React.FC<{ isOpen: boolean; onClose: () => void; subjects: Subject[]; classes: any[]; profile: any; onSuccess: () => void }> = ({ onClose, subjects, classes, profile, onSuccess }) => {
   const [formData, setFormData] = useState({ 
-    date: new Date().toISOString().split('T')[0],
+    date: new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(new Date()),
     subjectId: '',
     classId: '',
     topic: '',
@@ -528,6 +570,15 @@ const JournalModal: React.FC<{ isOpen: boolean; onClose: () => void; subjects: S
         teacherId: profile.uid,
         createdAt: serverTimestamp()
       });
+
+      await addDoc(collection(db, 'audit_logs'), {
+        type: 'ACADEMIC',
+        action: 'CREATE_JOURNAL',
+        message: `Isi jurnal: ${formData.topic} (${formData.classId})`,
+        user: profile.name || 'Guru',
+        timestamp: serverTimestamp()
+      });
+
       onSuccess();
     } catch (err) {
       handleFirestoreError(err, OperationType.CREATE, 'teaching_journals');

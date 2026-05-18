@@ -26,7 +26,7 @@ import {
   Pencil
 } from 'lucide-react';
 import { ModulePage, ModuleSearch } from './ModuleLayout';
-import { useConfig } from '../context/ConfigContext';
+import { AuthProvider, useAuth } from '../hooks/useAuth';
 import { 
   collection, 
   query, 
@@ -49,7 +49,7 @@ interface ArchivePortalProps {
 }
 
 export const ArchivePortal: React.FC<ArchivePortalProps> = ({ initialGtkId, isStandalone = true }) => {
-  const { profile } = useConfig();
+  const { profile } = useAuth();
   const [items, setItems] = useState<ArchiveItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -366,7 +366,7 @@ export const ArchivePortal: React.FC<ArchivePortalProps> = ({ initialGtkId, isSt
       {/* breadcrumbs */}
       <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-2">
         {folderPath.map((path, i) => (
-          <React.Fragment key={path.id || 'root'}>
+          <React.Fragment key={`breadcrumb-${path.id || 'root'}-${i}`}>
             {i > 0 && <ChevronRight size={14} className="text-slate-300 shrink-0" />}
             <button 
               onClick={() => {
@@ -475,13 +475,13 @@ export const ArchivePortal: React.FC<ArchivePortalProps> = ({ initialGtkId, isSt
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           <AnimatePresence mode="popLayout">
-            {currentItems.map((item) => (
+            {currentItems.map((item, aIdx) => (
               <motion.div
                 layout
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.9 }}
-                key={item.uid}
+                key={`archive-item-${item.uid}`}
                 onClick={() => {
                   if (item.type === 'folder') {
                     handleNavigate(item);
@@ -668,8 +668,8 @@ export const ArchivePortal: React.FC<ArchivePortalProps> = ({ initialGtkId, isSt
                           className="w-full h-14 bg-slate-50 dark:bg-slate-900 rounded-2xl px-4 text-sm font-bold border border-slate-100 dark:border-slate-700"
                         >
                           <option value="">- Pilih GTK -</option>
-                          {gtkList.map(g => (
-                            <option key={g.uid} value={g.uid}>{g.name}</option>
+                          {Array.from(new Map(gtkList.filter(g => g && g.uid).map(g => [g.uid, g])).values()).map((g: any) => (
+                            <option key={`gtk-opt-${g.uid}`} value={g.uid}>{g.name}</option>
                           ))}
                         </select>
                       </div>

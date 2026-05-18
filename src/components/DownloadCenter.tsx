@@ -42,7 +42,7 @@ export const DownloadCenter: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
-  const canGenerateReport = profile?.roles.some(r => ['admin', 'kepsek', 'kurikulum', 'operator'].includes(r));
+  const canGenerateReport = profile?.roles.some(r => ['admin', 'kepsek', 'wakakur', 'wakasis', 'wakasar', 'wakahum', 'operator'].includes(r));
 
   const categories = [
     { id: 'all', label: 'Semua', icon: <FileText size={16} /> },

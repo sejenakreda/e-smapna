@@ -2,10 +2,10 @@ export type UserRole =
   | 'admin' 
   | 'kepsek' 
   | 'wakasek' 
-  | 'waka_kurikulum'
-  | 'waka_kesiswaan'
-  | 'waka_sarpras'
-  | 'waka_humas'
+  | 'wakakur'
+  | 'wakasis'
+  | 'wakasar'
+  | 'wakahum'
   | 'teacher' 
   | 'staff_tu' 
   | 'kepala_tu'
@@ -23,6 +23,8 @@ export interface UserProfile {
   roles: UserRole[];
   classId?: string;
   faceDescriptor?: number[];
+  faceRegistrationPhoto?: string;
+  faceRegistrationDate?: any;
   nisn?: string;
   nipd?: string;
   nik?: string;
@@ -171,6 +173,43 @@ export interface AppConfig {
   attendanceEndTime?: string;
   lateTolerance?: number;
   updatedAt: any;
+}
+
+export interface StaffAttendance {
+  uid: string;
+  name?: string;
+  date: string; // YYYY-MM-DD
+  checkIn?: {
+    time: string;
+    lat: number;
+    lng: number;
+    status: 'on-time' | 'late';
+    isOutsideRadius?: boolean;
+    verificationType?: 'face' | 'manual';
+  };
+  checkOut?: {
+    time: string;
+    lat: number;
+    lng: number;
+  };
+  status?: 'Hadir' | 'Sakit' | 'Izin' | 'Dinas Luar' | 'Alpa';
+  notes?: string;
+  leaveRequestId?: string;
+}
+
+export interface LeaveRequest {
+  id: string;
+  uid: string;
+  name: string;
+  type: 'Sakit' | 'Izin' | 'Dinas Luar';
+  startDate: string;
+  endDate: string;
+  reason: string;
+  attachmentUrl?: string;
+  status: 'pending' | 'approved' | 'rejected';
+  processedBy?: string;
+  processedAt?: any;
+  createdAt: any;
 }
 
 export interface ArchiveItem {

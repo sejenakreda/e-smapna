@@ -76,6 +76,7 @@
       "type": "object",
       "properties": {
         "uid": { "type": "string" },
+        "name": { "type": "string" },
         "date": { "type": "string" },
         "checkIn": { 
           "type": "object",
@@ -83,7 +84,9 @@
             "time": { "type": "string" },
             "lat": { "type": "number" },
             "lng": { "type": "number" },
-            "status": { "type": "string", "enum": ["on-time", "late"] }
+            "status": { "type": "string", "enum": ["on-time", "late"] },
+            "isOutsideRadius": { "type": "boolean" },
+            "verificationType": { "type": "string" }
           }
         },
         "checkOut": {
@@ -93,7 +96,29 @@
             "lat": { "type": "number" },
             "lng": { "type": "number" }
           }
-        }
+        },
+        "status": { "type": "string", "enum": ["Hadir", "Sakit", "Izin", "Dinas Luar", "Alpa"] },
+        "notes": { "type": "string" },
+        "leaveRequestId": { "type": "string" }
+      }
+    },
+    "LeaveRequest": {
+      "title": "Leave Request",
+      "description": "Requests for sick leave, permits, or outside duties",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "uid": { "type": "string" },
+        "name": { "type": "string" },
+        "type": { "type": "string", "enum": ["Sakit", "Izin", "Dinas Luar"] },
+        "startDate": { "type": "string" },
+        "endDate": { "type": "string" },
+        "reason": { "type": "string" },
+        "attachmentUrl": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "processedBy": { "type": "string" },
+        "processedAt": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" }
       }
     },
     "Student": {
@@ -242,9 +267,45 @@
         "user": { "type": "string" },
         "timestamp": { "type": "string", "format": "date-time" }
       }
+    },
+    "Announcement": {
+      "title": "Announcement",
+      "description": "Official school announcements",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "target": { "type": "string", "enum": ["ALL", "GURU", "SISWA"] },
+        "author": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "priority": { "type": "string", "enum": ["NORMAL", "HIGH"] }
+      }
+    },
+    "AcademicEvent": {
+      "title": "Academic Event",
+      "description": "Agenda items in the school academic calendar",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "date": { "type": "string" },
+        "type": { "type": "string", "enum": ["HOLIDAY", "EXAM", "MEETING", "EVENT"] },
+        "location": { "type": "string" },
+        "createdBy": { "type": "string" }
+      }
     }
   },
   "firestore": {
+    "announcements": {
+      "schema": "Announcement",
+      "description": "Collection for official school news and info"
+    },
+    "academic_events": {
+      "schema": "AcademicEvent",
+      "description": "Collection for academic calendar events"
+    },
     "archives": {
       "schema": "ArchiveItem",
       "description": "Global storage for digital documents and folders"
@@ -296,6 +357,10 @@
     "staff_attendance": {
       "schema": "StaffAttendance",
       "description": "Daily attendance for employees"
+    },
+    "leave_requests": {
+      "schema": "LeaveRequest",
+      "description": "Sick, permit, and dinas luar requests"
     },
     "app_config": {
       "schema": "AppConfig",

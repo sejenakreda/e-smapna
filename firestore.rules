@@ -31,7 +31,7 @@ service cloud.firestore {
       return isSignedIn() && (
         isAdmin() || (
           exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('roles', []).hasAny(['kepsek', 'wakasek', 'operator', 'staff_tu', 'kepala_tu'])
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('roles', []).hasAny(['kepsek', 'wakasek', 'operator', 'staff_tu', 'kepala_tu', 'wakakur', 'wakasis', 'wakahum', 'wakasar'])
         )
       );
     }
@@ -44,7 +44,7 @@ service cloud.firestore {
       return isSignedIn() && (
         isManagement() || (
           exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('roles', []).hasAny(['teacher', 'bk', 'pembina', 'waka_kurikulum', 'waka_kesiswaan', 'waka_sarpras', 'waka_humas'])
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('roles', []).hasAny(['teacher', 'bk', 'pembina', 'wakakur', 'wakasis', 'wakasar', 'wakahum'])
         )
       );
     }
@@ -69,8 +69,10 @@ service cloud.firestore {
         let optStatus = !data.keys().hasAny(['status']) || (data.status is string && data.status.size() <= 50);
         let optAngkatan = !data.keys().hasAny(['angkatan']) || (data.angkatan is string && data.angkatan.size() <= 20);
         let face = (!data.keys().hasAny(['faceDescriptor']) || (data.faceDescriptor is list && data.faceDescriptor.size() <= 200));
+        let facePhoto = (!data.keys().hasAny(['faceRegistrationPhoto']) || (data.faceRegistrationPhoto is string && data.faceRegistrationPhoto.size() <= 1000000)); // 1MB limit for base64 or long URL
+        let faceDate = (!data.keys().hasAny(['faceRegistrationDate']) || (data.faceRegistrationDate is string || data.faceRegistrationDate is timestamp));
         
-        return hasAuth && hasRole && optStatus && optAngkatan && face;
+        return hasAuth && hasRole && optStatus && optAngkatan && face && facePhoto && faceDate;
       }
 
       // Allow users to read their own data, and management to read all
@@ -123,6 +125,22 @@ service cloud.firestore {
       allow list: if isSignedIn() && (isManagement() || isMaster() || (resource.data.uid == request.auth.uid)); 
       allow create: if isSignedIn() && isValidStaffAttendance(request.resource.data) && (request.resource.data.uid == request.auth.uid || isManagement());
       allow update: if isSignedIn() && isValidStaffAttendance(request.resource.data) && (resource.data.uid == request.auth.uid || isManagement());
+    }
+
+    // --- Leave Requests Collection ---
+    match /leave_requests/{requestId} {
+      function isValidLeaveRequest(data) {
+        return data.uid is string && 
+               data.type in ['Sakit', 'Izin', 'Dinas Luar'] &&
+               data.startDate is string &&
+               data.endDate is string &&
+               data.status in ['pending', 'approved', 'rejected'];
+      }
+      allow read: if isSignedIn() && (isOwner(resource.data.uid) || isManagement() || isMaster());
+      allow list: if isSignedIn() && (isManagement() || isMaster() || (resource.data.uid == request.auth.uid));
+      allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid && isValidLeaveRequest(request.resource.data);
+      allow update: if isManagement() || isMaster() || (isOwner(resource.data.uid) && resource.data.status == 'pending');
+      allow delete: if (isOwner(resource.data.uid) && resource.data.status == 'pending') || isManagement() || isMaster();
     }
 
     // --- Settings Collection ---
@@ -224,6 +242,29 @@ service cloud.firestore {
       allow read: if isManagement() || isMaster();
       allow create: if isSignedIn(); 
       allow update, delete: if false;
+    }
+
+    // --- Announcements Collection ---
+    match /announcements/{annId} {
+      function isValidAnnouncement(data) {
+        return data.title is string && data.title.size() <= 200 &&
+               data.content is string && data.content.size() <= 10000 &&
+               data.target in ['ALL', 'GURU', 'SISWA'] &&
+               data.priority in ['NORMAL', 'HIGH'];
+      }
+      allow read: if isSignedIn();
+      allow write: if (isManagement() || isMaster()) && isValidAnnouncement(request.resource.data);
+    }
+
+    // --- Academic Events Collection ---
+    match /academic_events/{eventId} {
+      function isValidAcademicEvent(data) {
+        return data.title is string && data.title.size() <= 200 &&
+               data.date is string &&
+               data.type in ['HOLIDAY', 'EXAM', 'MEETING', 'EVENT'];
+      }
+      allow read: if isSignedIn();
+      allow write: if (isManagement() || isMaster()) && isValidAcademicEvent(request.resource.data);
     }
   }
 }

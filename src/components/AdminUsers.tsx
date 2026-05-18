@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { collection, getDocs, updateDoc, doc, setDoc, deleteDoc, query, orderBy } from 'firebase/firestore';
+import { collection, getDocs, updateDoc, doc, setDoc, deleteDoc, query, orderBy, serverTimestamp, addDoc } from 'firebase/firestore';
 import { db, auth } from '../lib/firebase';
 import { UserRole, UserProfile } from '../types';
 import { 
@@ -31,26 +31,27 @@ import { ModulePage, ModuleSearch, ModuleCard } from './ModuleLayout';
 const ROLES: { value: UserRole; label: string; color: string }[] = [
   { value: 'admin', label: 'Administrator', color: 'bg-blue-600' },
   { value: 'kepsek', label: 'Kepala Sekolah', color: 'bg-purple-600' },
-  { value: 'waka_kurikulum', label: 'Waka Kurikulum', color: 'bg-indigo-600' },
-  { value: 'waka_kesiswaan', label: 'Waka Kesiswaan', color: 'bg-rose-600' },
-  { value: 'waka_sarpras', label: 'Waka Sarpras', color: 'bg-teal-600' },
-  { value: 'waka_humas', label: 'Waka Humas', color: 'bg-amber-600' },
+  { value: 'wakakur', label: 'Waka Kurikulum', color: 'bg-indigo-600' },
+  { value: 'wakasis', label: 'Waka Kesiswaan', color: 'bg-rose-600' },
+  { value: 'wakasar', label: 'Waka Sarpras', color: 'bg-teal-600' },
+  { value: 'wakahum', label: 'Waka Humas', color: 'bg-amber-600' },
+  { value: 'wakasek', label: 'Wakil Kepala Sekolah', color: 'bg-indigo-500' },
   { value: 'teacher', label: 'Guru / PTK', color: 'bg-emerald-600' },
-  { value: 'student', label: 'Siswa', color: 'bg-indigo-600' },
-  { value: 'parent', label: 'Orang Tua', color: 'bg-pink-600' },
   { value: 'staff_tu', label: 'Staf TU', color: 'bg-slate-600' },
   { value: 'kepala_tu', label: 'Kepala TU', color: 'bg-slate-800' },
   { value: 'bendahara', label: 'Bendahara', color: 'bg-emerald-500' },
   { value: 'operator', label: 'Operator', color: 'bg-orange-600' },
   { value: 'bk', label: 'Guru BK', color: 'bg-cyan-600' },
   { value: 'pembina', label: 'Pembina OSIS/Ekskul', color: 'bg-violet-600' },
+  { value: 'student', label: 'Siswa', color: 'bg-indigo-600' },
+  { value: 'parent', label: 'Orang Tua', color: 'bg-pink-600' },
 ];
 
 export const AdminUsers: React.FC = () => {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterTab, setFilterTab] = useState<'all' | 'gtk' | 'siswa'>('all');
+  const [filterTab, setFilterTab] = useState<'all' | 'gtk' | 'siswa' | 'admin'>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
@@ -176,6 +177,13 @@ export const AdminUsers: React.FC = () => {
       if (editingUser) {
         try {
           await updateDoc(doc(db, 'users', editingUser.uid), payload);
+          await addDoc(collection(db, 'audit_logs'), {
+            type: 'USER',
+            action: 'UPDATE',
+            message: `Update user: ${payload.name} (${payload.roles.join(', ')})`,
+            user: auth.currentUser?.displayName || 'Admin',
+            timestamp: serverTimestamp()
+          });
           
           // Optionally sync to Auth if email changed
           if (editingUser.email !== userEmail) {
@@ -212,11 +220,20 @@ export const AdminUsers: React.FC = () => {
         const uid = resData.uid;
         
         try {
-          await setDoc(doc(db, 'users', uid), {
+          const userPayload = {
             ...payload,
             uid,
             email: userEmail,
-            createdAt: new Date().toISOString(),
+            createdAt: serverTimestamp(),
+          };
+          await setDoc(doc(db, 'users', uid), userPayload);
+          
+          await addDoc(collection(db, 'audit_logs'), {
+            type: 'USER',
+            action: 'CREATE',
+            message: `User baru terdaftar: ${formData.name}`,
+            user: auth.currentUser?.displayName || 'Admin',
+            timestamp: serverTimestamp()
           });
         } catch (err: any) {
           handleFirestoreError(err, OperationType.CREATE, `users/${uid}`);
@@ -237,7 +254,17 @@ export const AdminUsers: React.FC = () => {
 
   const handleDelete = async (uid: string) => {
     try {
+      const userToDelete = users.find(u => u.uid === uid);
       await deleteDoc(doc(db, 'users', uid));
+      
+      await addDoc(collection(db, 'audit_logs'), {
+        type: 'USER',
+        action: 'DELETE',
+        message: `Hapus user: ${userToDelete?.name || uid}`,
+        user: auth.currentUser?.displayName || 'Admin',
+        timestamp: serverTimestamp()
+      });
+
       setUsers(prev => prev.filter(u => u.uid !== uid));
       setIsDeleting(null);
     } catch (err: any) {
@@ -309,10 +336,17 @@ export const AdminUsers: React.FC = () => {
     if (!matchesSearch) return false;
 
     if (filterTab === 'gtk') {
-      return u.roles?.some(r => ['teacher', 'kepsek', 'staff_tu', 'kepala_tu', 'bendahara', 'operator', 'bk', 'pembina', 'waka_kurikulum', 'waka_kesiswaan', 'waka_sarpras', 'waka_humas', 'guru'].includes(r));
+      return u.roles?.some(r => [
+        'teacher', 'kepsek', 'wakasek', 'wakakur', 'wakasis', 'wakasar', 'wakahum', 
+        'staff_tu', 'kepala_tu', 'bendahara', 'operator', 'bk', 'pembina'
+      ].includes(r));
     }
     if (filterTab === 'siswa') {
       return u.roles?.includes('student') || u.roles?.includes('parent');
+    }
+    
+    if (filterTab === 'admin') {
+      return u.roles?.some(r => ['admin', 'operator', 'kepala_tu'].includes(r));
     }
     
     return true;
@@ -390,6 +424,15 @@ export const AdminUsers: React.FC = () => {
           Semua User
         </button>
         <button 
+          onClick={() => setFilterTab('admin')}
+          className={cn(
+            "flex-1 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all",
+            filterTab === 'admin' ? "bg-white dark:bg-slate-800 text-blue-600 soft-shadow" : "text-slate-400"
+          )}
+        >
+          User Admin
+        </button>
+        <button 
           onClick={() => setFilterTab('gtk')}
           className={cn(
             "flex-1 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all",
@@ -439,7 +482,7 @@ export const AdminUsers: React.FC = () => {
           <AnimatePresence>
             {filteredUsers.map((user, idx) => (
               <motion.div 
-                key={user.uid}
+                key={`user-row-${user.uid}-${idx}`}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: idx * 0.05 }}
@@ -453,11 +496,21 @@ export const AdminUsers: React.FC = () => {
                     {user.roles?.includes('admin') ? <ShieldCheck size={28} /> : <UserIcon size={28} />}
                   </div>
                   <div className="min-w-0">
-                    <h3 className="font-black text-slate-800 dark:text-white text-[14px] truncate">{user.name}</h3>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-black text-slate-800 dark:text-white text-[14px] truncate">{user.name}</h3>
+                      {auth.currentUser?.uid === user.uid && (
+                        <span className="text-[7px] font-black bg-blue-600 text-white px-2 py-0.5 rounded-full uppercase tracking-widest shadow-md animate-pulse">
+                          Anda
+                        </span>
+                      )}
+                      <span className="text-[8px] font-mono text-slate-300 px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                        UID: ...{user.uid?.slice(-4)}
+                      </span>
+                    </div>
                     <p className="text-[10px] font-bold text-slate-400 mt-0.5 truncate">{user.email}</p>
                     <div className="flex flex-wrap items-center gap-1 mt-2">
-                       {user.roles?.map(role => (
-                         <span key={role} className={cn(
+                      {user.roles?.map((role, rIdx) => (
+                         <span key={`user-role-${user.uid}-${role}-${rIdx}`} className={cn(
                             "text-[7px] font-black uppercase px-2 py-0.5 rounded-md",
                             ROLES.find(r => r.value === role)?.color || "bg-slate-500",
                             "text-white shadow-sm"
@@ -465,6 +518,11 @@ export const AdminUsers: React.FC = () => {
                             {ROLES.find(r => r.value === role)?.label || role}
                           </span>
                        ))}
+                       {user.roles?.some(r => ['teacher', 'kepsek', 'wakasek', 'staff_tu', 'kepala_tu', 'operator', 'bendahara', 'bk', 'pembina'].includes(r)) && (
+                         <span className="text-[7px] font-black uppercase px-2 py-0.5 rounded-md bg-orange-100 text-orange-600 border border-orange-200">
+                           Anggota GTK
+                         </span>
+                       )}
                     </div>
                   </div>
                 </div>

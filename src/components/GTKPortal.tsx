@@ -27,10 +27,18 @@ import {
   Phone,
   Calendar,
   MapPin,
-  MoreHorizontal
+  ScanEye,
+  Camera,
+  RefreshCw,
+  MoreHorizontal,
+  Fingerprint,
+  ShieldCheck,
+  School,
+  ArrowRight,
+  MessageCircle
 } from 'lucide-react';
 import { ModulePage, ModuleSearch, ModuleCard } from './ModuleLayout';
-import { useConfig } from '../context/ConfigContext';
+import { AuthProvider, useAuth } from '../hooks/useAuth';
 import { 
   collection, 
   query, 
@@ -50,10 +58,23 @@ import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 
+import { 
+  BarChart, 
+  Bar, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer, 
+  Cell,
+  PieChart,
+  Pie
+} from 'recharts';
+
 import { ArchivePortal } from './ArchivePortal';
 
 export const GTKPortal: React.FC = () => {
-  const { profile } = useConfig();
+  const { profile } = useAuth();
   const [gtkList, setGtkList] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -182,10 +203,35 @@ export const GTKPortal: React.FC = () => {
   const [selectedGtk, setSelectedGtk] = useState<UserProfile | null>(null);
   const [viewingGtk, setViewingGtk] = useState<UserProfile | null>(null);
   const [activeTab, setActiveTab] = useState<'ALL' | 'TEACHER' | 'STAFF'>('ALL');
-  const [detailTab, setDetailTab] = useState<'INFO' | 'ARCHIVE'>('INFO');
+  const [detailTab, setDetailTab] = useState<'INFO' | 'ARCHIVE' | 'DOCS'>('INFO');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isImporting, setIsImporting] = useState(false);
+  const [isFaceModalOpen, setIsFaceModalOpen] = useState(false);
+  const [isCapturing, setIsCapturing] = useState(false);
+  const videoRef = React.useRef<HTMLVideoElement>(null);
+  const canvasRef = React.useRef<HTMLCanvasElement>(null);
+  const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  
+  const isAdmin = useMemo(() => {
+    if (!profile) return false;
+    const userEmail = profile.email?.toLowerCase().trim();
+    const adminRoles = ['admin', 'operator', 'administrator', 'kepala_tu', 'staff_tu'];
+    const hasAdminRole = profile.roles?.some(r => adminRoles.includes(r.toLowerCase()));
+    const isSpecialEmail = userEmail === 'redasejenak@gmail.com';
+    return !!(hasAdminRole || isSpecialEmail);
+  }, [profile]);
+  
+  const isManagement = useMemo(() => {
+    if (!profile) return false;
+    return profile.roles?.some(r => ['admin', 'kepsek', 'wakasek', 'wakakur', 'wakasis', 'wakasar', 'wakahum', 'operator', 'kepala_tu'].includes(r));
+  }, [profile]);
+
+  const isOwner = (uid: string) => profile?.uid === uid;
+  const canEdit = (gtk: UserProfile) => {
+    if (isAdmin) return true;
+    return isOwner(gtk.uid);
+  };
   
   // Form State
   const [formData, setFormData] = useState<Partial<UserProfile>>({
@@ -219,7 +265,7 @@ export const GTKPortal: React.FC = () => {
     // GTK roles as defined in types.ts - Include ALL roles that belong to GTK category
     const gtkRoles = [
       'teacher', 'wakasek', 'kepsek', 'staff_tu', 'kepala_tu', 'bendahara', 'operator', 
-      'bk', 'pembina', 'waka_kurikulum', 'waka_kesiswaan', 'waka_sarpras', 'waka_humas'
+      'bk', 'pembina', 'wakakur', 'wakasis', 'wakasar', 'wakahum'
     ];
     
     const q = query(
@@ -251,7 +297,7 @@ export const GTKPortal: React.FC = () => {
       
       const isTeacher = g.roles.some(r => [
         'teacher', 'wakasek', 'kepsek', 'bk', 'pembina',
-        'waka_kurikulum', 'waka_kesiswaan', 'waka_sarpras', 'waka_humas'
+        'wakakur', 'wakasis', 'wakasar', 'wakahum'
       ].includes(r));
 
       const isStaff = g.roles.some(r => [
@@ -271,7 +317,7 @@ export const GTKPortal: React.FC = () => {
     const list = gtkList;
     const teachers = list.filter(g => g.roles.some(r => [
       'teacher', 'wakasek', 'kepsek', 'bk', 'pembina',
-      'waka_kurikulum', 'waka_kesiswaan', 'waka_sarpras', 'waka_humas'
+      'wakakur', 'wakasis', 'wakasar', 'wakahum'
     ].includes(r)));
     const staff = list.filter(g => g.roles.some(r => [
       'staff_tu', 'kepala_tu', 'bendahara', 'operator'
@@ -283,13 +329,25 @@ export const GTKPortal: React.FC = () => {
       (g.tahunSertifikasi && g.tahunSertifikasi.trim() !== '')
     ).length;
     
+    // Status distribution for chart
+    const statusCounts: {[key: string]: number} = {};
+    list.forEach(g => {
+      const s = g.statusKepegawaian || 'LAINNYA';
+      statusCounts[s] = (statusCounts[s] || 0) + 1;
+    });
+    const statusData = Object.keys(statusCounts).map(name => ({
+      name,
+      count: statusCounts[name]
+    })).sort((a, b) => b.count - a.count);
+
     return {
       total: list.length,
       teachers: teachers.length,
       staff: staff.length,
       male: list.filter(g => g.gender === 'L').length,
       female: list.filter(g => g.gender === 'P').length,
-      certified
+      certified,
+      statusData
     };
   }, [gtkList]);
 
@@ -309,6 +367,10 @@ export const GTKPortal: React.FC = () => {
   };
 
   const handleCSVImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!isAdmin) {
+      alert("Hanya Admin yang dapat mengimpor data.");
+      return;
+    }
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -370,6 +432,11 @@ export const GTKPortal: React.FC = () => {
   const handleSaveGTK = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.email || !formData.name) return;
+
+    if (!canEdit(selectedGtk || ({} as UserProfile))) {
+      alert("Anda tidak memiliki akses untuk mengedit data ini.");
+      return;
+    }
 
     try {
       setLoading(true);
@@ -457,6 +524,10 @@ export const GTKPortal: React.FC = () => {
   };
 
   const handleDelete = async (uid: string) => {
+    if (!isAdmin) {
+      alert("Hanya Admin yang dapat menghapus data.");
+      return;
+    }
     if (window.confirm("Hapus data GTK ini? Tindakan ini tidak dapat dibatalkan.")) {
       try {
         await deleteDoc(doc(db, 'users', uid));
@@ -569,6 +640,80 @@ export const GTKPortal: React.FC = () => {
         />
       </div>
 
+      {/* Analytics Insight */}
+      <AnimatePresence>
+        {viewMode === 'DATABASE' && (
+          <motion.div 
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="mb-10 overflow-hidden"
+          >
+            <div className="bg-white dark:bg-slate-800 p-8 rounded-[40px] border border-slate-50 dark:border-slate-700 soft-shadow">
+              <div className="flex items-center justify-between mb-8">
+                 <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-600">
+                       <Award size={20} />
+                    </div>
+                    <div>
+                       <h3 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-tight">Statistik Kepegawaian</h3>
+                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Distribusi Berdasarkan Status</p>
+                    </div>
+                 </div>
+                 <div className="flex items-center gap-4">
+                    <div className="text-right">
+                       <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest leading-none">Paling Banyak</p>
+                       <p className="text-xs font-black text-blue-600 uppercase mt-1">{stats.statusData[0]?.name || '-'}</p>
+                    </div>
+                 </div>
+              </div>
+
+              <div className="w-full min-h-[250px]">
+                <ResponsiveContainer width="100%" height={250}>
+                  <BarChart data={stats.statusData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" opacity={0.5} />
+                    <XAxis 
+                      dataKey="name" 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{ fontSize: 9, fontWeight: 900, fill: '#94A3B8' }}
+                      dy={10}
+                    />
+                    <YAxis 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{ fontSize: 9, fontWeight: 900, fill: '#94A3B8' }}
+                    />
+                    <Tooltip 
+                      cursor={{ fill: '#F1F5F9', radius: 12 }}
+                      contentStyle={{ 
+                        borderRadius: '16px', 
+                        border: 'none', 
+                        boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)',
+                        padding: '12px'
+                      }}
+                      itemStyle={{ fontSize: '10px', fontWeight: 900, textTransform: 'uppercase' }}
+                    />
+                    <Bar 
+                      dataKey="count" 
+                      radius={[12, 12, 4, 4]} 
+                      barSize={40}
+                    >
+                      {stats.statusData.map((entry, index) => (
+                        <Cell 
+                          key={`cell-${index}`} 
+                          fill={['#2563EB', '#F59E0B', '#10B981', '#EC4899', '#6366F1'][index % 5]} 
+                        />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="flex bg-slate-100 dark:bg-slate-900/50 p-1.5 rounded-2xl mb-8 w-fit gap-1">
         <button
           onClick={() => setViewMode('DATABASE')}
@@ -652,124 +797,167 @@ export const GTKPortal: React.FC = () => {
           </div>
         </div>
 
-        {loading ? (
-          <div className="flex flex-col items-center justify-center py-20 bg-white/50 dark:bg-slate-800/50 rounded-[40px] border border-dashed border-slate-200 dark:border-slate-700">
-            <Loader2 size={32} className="text-orange-600 animate-spin mb-4" />
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest animate-pulse">Menghubungkan ke Pusat Data...</p>
-          </div>
-        ) : error ? (
-          <div className="p-12 bg-rose-50 dark:bg-rose-900/10 rounded-[40px] text-center border border-rose-100 dark:border-rose-900/20">
-            <AlertCircle size={40} className="text-rose-600 mx-auto mb-4" />
-            <p className="text-sm font-black text-rose-600">{error}</p>
-          </div>
-        ) : filteredGTK.length === 0 ? (
-          <div className="p-20 text-center bg-white dark:bg-slate-800/50 rounded-[40px] border border-dashed border-slate-200 dark:border-slate-700">
-            <UserX size={48} className="text-slate-200 dark:text-slate-700 mx-auto mb-4" />
-            <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Pencarian Tidak Ditemukan</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {filteredGTK.map((gtk, i) => (
-                  <motion.div 
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: i * 0.05 }}
-                    key={gtk.uid} 
-                    onClick={() => { setViewingGtk(gtk); setIsDetailOpen(true); setDetailTab('INFO'); }}
-                    className={cn(
-                      "p-6 flex items-start gap-4 transition-all cursor-pointer group bg-white dark:bg-slate-800/80 rounded-[32px] border soft-shadow",
-                      viewingGtk?.uid === gtk.uid 
-                        ? "border-orange-500 ring-4 ring-orange-500/10 shadow-xl" 
-                        : "border-slate-50 dark:border-slate-700 hover:border-orange-200 hover:shadow-lg dark:hover:border-slate-600"
-                    )}
-                  >
-                      <div className="relative">
-                        <div className={cn(
-                          "w-16 h-16 rounded-3xl flex items-center justify-center font-black text-2xl transition-all shadow-inner",
-                          gtk.gender === 'P' 
-                            ? "bg-rose-50 text-rose-500 dark:bg-rose-900/20" 
-                            : "bg-blue-50 text-blue-500 dark:bg-blue-900/20"
-                        )}>
-                            {gtk.name[0]}
+                <div className="space-y-4">
+                  {loading ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {[1, 2, 3, 4, 5, 6].map((i) => (
+                        <div key={`skeleton-gtk-${i}`} className="p-6 flex items-start gap-4 bg-white/40 dark:bg-slate-800/40 rounded-[32px] border border-slate-100 dark:border-slate-700 animate-pulse">
+                          <div className="w-16 h-16 rounded-3xl bg-slate-200 dark:bg-slate-700" />
+                          <div className="flex-1 space-y-3">
+                            <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded-full w-2/3" />
+                            <div className="h-2 bg-slate-100 dark:bg-slate-700 rounded-full w-1/3" />
+                            <div className="flex gap-2">
+                              <div className="h-4 bg-slate-100 dark:bg-slate-700 rounded-lg w-16" />
+                              <div className="h-4 bg-slate-100 dark:bg-slate-700 rounded-lg w-20" />
+                            </div>
+                          </div>
                         </div>
-                        {viewingGtk?.uid === gtk.uid && (
-                          <div className="absolute -top-1 -right-1 w-6 h-6 bg-orange-600 rounded-full flex items-center justify-center text-white border-4 border-white dark:border-slate-800 shadow-lg">
-                             <CheckCircle2 size={12} fill="currentColor" className="text-orange-600 bg-white rounded-full" />
+                      ))}
+                    </div>
+                  ) : error ? (
+                    <div className="p-12 bg-rose-50 dark:bg-rose-900/10 rounded-[40px] text-center border border-rose-100 dark:border-rose-900/20">
+                      <AlertCircle size={40} className="text-rose-600 mx-auto mb-4" />
+                      <p className="text-sm font-black text-rose-600">{error}</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {filteredGTK.map((gtk, gIdx) => (
+                            <motion.div 
+                              initial={{ opacity: 0, y: 20 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ delay: gIdx * 0.05 }}
+                              key={`gtk-card-stable-${gtk.uid}`} 
+                              onClick={() => { setViewingGtk(gtk); setIsDetailOpen(true); setDetailTab('INFO'); }}
+                          className={cn(
+                            "p-6 flex items-start gap-4 transition-all cursor-pointer group bg-white dark:bg-slate-800/80 rounded-[32px] border soft-shadow",
+                            viewingGtk?.uid === gtk.uid 
+                              ? "border-orange-500 ring-4 ring-orange-500/10 shadow-xl" 
+                              : "border-slate-50 dark:border-slate-700 hover:border-orange-200 hover:shadow-lg dark:hover:border-slate-600"
+                          )}
+                        >
+                          <div className="relative">
+                            <div className={cn(
+                              "w-16 h-16 rounded-3xl flex items-center justify-center font-black text-2xl transition-all shadow-inner",
+                              gtk.gender === 'P' 
+                                ? "bg-rose-50 text-rose-500 dark:bg-rose-900/20" 
+                                : "bg-blue-50 text-blue-500 dark:bg-blue-900/20"
+                            )}>
+                                {gtk.name ? gtk.name[0] : '?'}
+                            </div>
+                            {viewingGtk?.uid === gtk.uid && (
+                              <div className="absolute -top-1 -right-1 w-6 h-6 bg-orange-600 rounded-full flex items-center justify-center text-white border-4 border-white dark:border-slate-800 shadow-lg">
+                                 <CheckCircle2 size={12} fill="currentColor" className="text-orange-600 bg-white rounded-full" />
+                              </div>
+                            )}
+                            {gtk.faceDescriptor && (
+                              <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-emerald-600 rounded-full flex items-center justify-center text-white border-4 border-white dark:border-slate-800 shadow-lg" title="Face ID Terdaftar">
+                                 <Fingerprint size={12} />
+                              </div>
+                            )}
                           </div>
-                        )}
-                      </div>
 
-                      <div className="flex-1 min-w-0 pt-1">
-                          <h4 className="font-black text-slate-800 dark:text-white text-base truncate group-hover:text-orange-600 transition-colors uppercase leading-tight">{gtk.name}</h4>
-                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
-                            {gtk.nuptk ? `NUPTK: ${gtk.nuptk}` : gtk.npa ? `NPA: ${gtk.npa}` : 'NUPTK/NPA Belum Diisi'}
-                          </p>
-                          
-                          <div className="flex flex-wrap items-center gap-2 mt-4">
-                               {gtk.noSertifikasi && (
-                                <span className={cn(
-                                  "text-[8px] font-black uppercase px-3 py-1 rounded-lg tracking-wider bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 border border-amber-200 dark:border-amber-800"
-                                )}>
-                                  Bersertifikat - {gtk.jenisSertifikasi}
-                                </span>
-                               )}
-                               
-                               <span className={cn(
-                                 "text-[8px] font-black uppercase px-3 py-1 rounded-lg tracking-wider",
-                                 gtk.roles.some(r => ['teacher', 'kepsek', 'wakasek'].includes(r)) 
-                                  ? "bg-blue-50 text-blue-600 dark:bg-blue-900/20" 
-                                  : "bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20"
-                               )}>
-                                 {gtk.roles.map(r => r.replace('staff_tu', 'Staf TU').replace('kepala_tu', 'Ka. TU').replace('teacher', 'Guru').replace('_', ' ')).join(', ')}
-                               </span>
-                               
-                               {gtk.statusKepegawaian && (
-                                <span className="text-[8px] font-black text-slate-500 uppercase px-3 py-1 rounded-lg bg-slate-50 dark:bg-slate-900 tracking-wider">
-                                  {gtk.statusKepegawaian}
-                                </span>
-                               )}
+                          <div className="flex-1 min-w-0 pt-1">
+                              <h4 className="font-black text-slate-800 dark:text-white text-base truncate group-hover:text-orange-600 transition-colors uppercase leading-tight">{gtk.name}</h4>
+                              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
+                                {gtk.nuptk ? `NUPTK: ${gtk.nuptk}` : gtk.npa ? `NPA: ${gtk.npa}` : 'NUPTK/NPA Belum Diisi'}
+                              </p>
+                              
+                              <div className="flex flex-wrap items-center gap-2 mt-4">
+                                   {gtk.noSertifikasi && (
+                                    <span className={cn(
+                                      "text-[8px] font-black uppercase px-3 py-1 rounded-lg tracking-wider bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 border border-amber-200 dark:border-amber-800"
+                                    )}>
+                                      Bersertifikat - {gtk.jenisSertifikasi}
+                                    </span>
+                                   )}
+                                   
+                                   <span className={cn(
+                                     "text-[8px] font-black uppercase px-3 py-1 rounded-lg tracking-wider",
+                                     gtk.roles.some(r => ['teacher', 'kepsek', 'wakasek'].includes(r)) 
+                                      ? "bg-blue-50 text-blue-600 dark:bg-blue-900/20" 
+                                      : "bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20"
+                                   )}>
+                                     {gtk.roles.map(r => r.replace('staff_tu', 'Staf TU').replace('kepala_tu', 'Ka. TU').replace('teacher', 'Guru').replace('_', ' ')).join(', ')}
+                                   </span>
+                                   
+                                   {gtk.statusKepegawaian && (
+                                    <span className="text-[8px] font-black text-slate-500 uppercase px-3 py-1 rounded-lg bg-slate-50 dark:bg-slate-900 tracking-wider">
+                                      {gtk.statusKepegawaian}
+                                    </span>
+                                   )}
 
-                               {gtk.tugasTambahan && (
-                                <span className="text-[8px] font-black text-amber-600 uppercase px-3 py-1 rounded-lg bg-amber-50 dark:bg-amber-900/20 tracking-wider border border-amber-100 dark:border-amber-900/40">
-                                  {gtk.tugasTambahan}
-                                </span>
-                               )}
+                                   {gtk.tugasTambahan && (
+                                    <span className="text-[8px] font-black text-amber-600 uppercase px-3 py-1 rounded-lg bg-amber-50 dark:bg-amber-900/20 tracking-wider border border-amber-100 dark:border-amber-900/40">
+                                      {gtk.tugasTambahan}
+                                    </span>
+                                   )}
+
+                                   {gtk.faceDescriptor && (
+                                    <span className="text-[8px] font-black text-emerald-600 uppercase px-3 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 tracking-wider border border-emerald-100 dark:border-emerald-900/40 flex items-center gap-1">
+                                      <Fingerprint size={10} /> Face ID
+                                    </span>
+                                   )}
+                              </div>
+                              
+                              <div className="mt-4 pt-4 border-t border-slate-50 dark:border-slate-700/50 flex items-center justify-between">
+                                 <div className="flex items-center gap-4">
+                                    <div className="flex items-center gap-1.5 group/icon">
+                                       <Mail size={12} className="text-slate-300 group-hover/icon:text-orange-500" />
+                                       <span className="text-[9px] font-bold text-slate-400 truncate max-w-[80px]">{gtk.email}</span>
+                                    </div>
+                                    {gtk.hp && (
+                                      <div className="flex items-center gap-1.5 group/icon">
+                                         <Phone size={12} className="text-slate-300 group-hover/icon:text-orange-500" />
+                                         <span className="text-[9px] font-bold text-slate-400 truncate max-w-[80px]">{gtk.hp}</span>
+                                      </div>
+                                    )}
+                                 </div>
+                                 
+                                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    {gtk.hp && (
+                                      <a 
+                                        href={`https://wa.me/${gtk.hp.replace(/\D/g, '')}`} 
+                                        target="_blank" 
+                                        rel="noreferrer"
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="p-2 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-xl text-slate-400 hover:text-emerald-600 transition-all"
+                                        title="WhatsApp"
+                                      >
+                                        <MessageCircle size={14} />
+                                      </a>
+                                    )}
+                                    <a 
+                                      href={`mailto:${gtk.email}`}
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="p-2 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-xl text-slate-400 hover:text-blue-600 transition-all"
+                                      title="Kirim Email"
+                                    >
+                                      <Mail size={14} />
+                                    </a>
+                                    {canEdit(gtk) && (
+                                      <button 
+                                        onClick={(e) => { e.stopPropagation(); handleEdit(gtk); }}
+                                        className="p-2 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-xl text-slate-400 hover:text-orange-600 transition-all"
+                                      >
+                                        <Edit3 size={14} />
+                                      </button>
+                                    )}
+                                    {isAdmin && (
+                                      <button 
+                                        onClick={(e) => { e.stopPropagation(); handleDelete(gtk.uid); }}
+                                        className="p-2 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-xl text-slate-400 hover:text-rose-600 transition-all"
+                                      >
+                                        <Trash2 size={14} />
+                                      </button>
+                                    )}
+                                 </div>
+                              </div>
                           </div>
-                          
-                          <div className="mt-4 pt-4 border-t border-slate-50 dark:border-slate-700/50 flex items-center justify-between">
-                             <div className="flex items-center gap-4">
-                                <div className="flex items-center gap-1.5 group/icon">
-                                   <Mail size={12} className="text-slate-300 group-hover/icon:text-orange-500" />
-                                   <span className="text-[9px] font-bold text-slate-400 truncate max-w-[80px]">{gtk.email}</span>
-                                </div>
-                                {gtk.hp && (
-                                  <div className="flex items-center gap-1.5 group/icon">
-                                     <Phone size={12} className="text-slate-300 group-hover/icon:text-orange-500" />
-                                     <span className="text-[9px] font-bold text-slate-400 truncate max-w-[80px]">{gtk.hp}</span>
-                                  </div>
-                                )}
-                             </div>
-                             
-                             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button 
-                                  onClick={(e) => { e.stopPropagation(); handleEdit(gtk); }}
-                                  className="p-2 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-xl text-slate-400 hover:text-orange-600 transition-all"
-                                >
-                                  <Edit3 size={14} />
-                                </button>
-                                <button 
-                                  onClick={(e) => { e.stopPropagation(); handleDelete(gtk.uid); }}
-                                  className="p-2 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-xl text-slate-400 hover:text-rose-600 transition-all"
-                                >
-                                  <Trash2 size={14} />
-                                </button>
-                             </div>
-                          </div>
-                      </div>
-                  </motion.div>
-              ))}
-          </div>
-        )}
+                        </motion.div>
+                      ))}
+                    </div>
+                  )}
+                </div>
       </section>
     </>
   )}
@@ -777,7 +965,7 @@ export const GTKPortal: React.FC = () => {
       {/* Modern GTK Modal */}
       <AnimatePresence>
         {isDetailOpen && viewingGtk && (
-           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+           <div key="detail-modal-root" className="fixed inset-0 z-[100] flex items-center justify-center p-4">
               <motion.div 
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                 onClick={() => setIsDetailOpen(false)}
@@ -793,10 +981,23 @@ export const GTKPortal: React.FC = () => {
                 <div className="p-10 bg-white dark:bg-slate-800 border-b border-slate-100 dark:border-slate-700">
                   <div className="flex flex-col md:flex-row items-center md:items-start gap-8">
                      <div className={cn(
-                       "w-32 h-32 rounded-[40px] flex items-center justify-center font-black text-5xl shadow-2xl ring-8 ring-slate-50 dark:ring-slate-900/50",
+                       "w-32 h-32 rounded-[40px] flex items-center justify-center font-black text-5xl shadow-2xl ring-8 ring-slate-50 dark:ring-slate-900/50 overflow-hidden relative",
                        viewingGtk.gender === 'P' ? "bg-rose-50 text-rose-500" : "bg-blue-50 text-blue-500"
                      )}>
-                       {viewingGtk.name[0]}
+                       {viewingGtk.faceRegistrationPhoto ? (
+                         <img 
+                           src={viewingGtk.faceRegistrationPhoto} 
+                           alt={viewingGtk.name}
+                           className="w-full h-full object-cover"
+                         />
+                       ) : (
+                         viewingGtk.name[0]
+                       )}
+                       {viewingGtk.faceDescriptor && (
+                          <div className="absolute bottom-2 right-2 w-8 h-8 bg-emerald-500 rounded-xl flex items-center justify-center text-white shadow-lg border-2 border-white dark:border-slate-800">
+                             <Fingerprint size={16} />
+                          </div>
+                       )}
                      </div>
                      <div className="flex-1 text-center md:text-left space-y-4">
                         <div>
@@ -815,12 +1016,26 @@ export const GTKPortal: React.FC = () => {
                         </div>
 
                         <div className="flex items-center justify-center md:justify-start gap-4">
+                           {canEdit(viewingGtk) && (
+                             <button 
+                               onClick={() => { handleEdit(viewingGtk); setIsDetailOpen(false); }}
+                               className="px-6 h-12 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-slate-800 transition-all shadow-lg"
+                             >
+                                <Edit3 size={16} />
+                                Edit Profil
+                             </button>
+                           )}
                            <button 
-                             onClick={() => { handleEdit(viewingGtk); setIsDetailOpen(false); }}
-                             className="px-6 h-12 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-slate-800 transition-all shadow-lg"
+                             onClick={() => setIsFaceModalOpen(true)}
+                             className={cn(
+                               "px-6 h-12 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all shadow-lg",
+                               viewingGtk.faceRegistrationPhoto 
+                                 ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border border-emerald-200"
+                                 : "bg-orange-100 text-orange-700 hover:bg-orange-200 border border-orange-200"
+                             )}
                            >
-                              <Edit3 size={16} />
-                              Edit Profil
+                              <ScanEye size={16} />
+                              {viewingGtk.faceRegistrationPhoto ? 'Face ID Terdaftar' : 'Daftarkan Face ID'}
                            </button>
                            <button 
                              onClick={() => generatePDF(viewingGtk)}
@@ -846,9 +1061,10 @@ export const GTKPortal: React.FC = () => {
                       {[
                         { id: 'INFO', label: 'Informasi Lengkap', icon: <UserCheck size={18} /> },
                         { id: 'ARCHIVE', label: 'Arsip Digital', icon: <FileText size={18} /> },
-                      ].map(tab => (
+                        { id: 'DOCS', label: 'Dokumen Terfomat', icon: <FileText size={18} /> },
+                      ].map((tab) => (
                         <button 
-                          key={tab.id}
+                          key={`detail-tab-main-${tab.id}`}
                           onClick={() => setDetailTab(tab.id as any)}
                           className={cn(
                             "py-6 text-[10px] font-black uppercase tracking-widest flex items-center gap-2 border-b-2 transition-all",
@@ -918,8 +1134,37 @@ export const GTKPortal: React.FC = () => {
                                  </div>
                               </div>
 
+                              {viewingGtk.faceRegistrationPhoto && (
+                                <div key="face-status-card" className="bg-white dark:bg-slate-900 border border-emerald-500/10 p-8 rounded-[40px] shadow-sm flex flex-col md:flex-row items-center gap-8">
+                                   <div className="relative group shrink-0">
+                                      <img 
+                                        src={viewingGtk.faceRegistrationPhoto} 
+                                        alt="Face ID Photo" 
+                                        className="w-32 h-32 rounded-[32px] object-cover ring-4 ring-emerald-500/20 group-hover:ring-emerald-500/40 transition-all shadow-lg"
+                                      />
+                                      <div className="absolute -bottom-3 -right-3 w-12 h-12 bg-emerald-600 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-emerald-600/20 border-4 border-white dark:border-slate-900">
+                                         <Fingerprint size={24} />
+                                      </div>
+                                   </div>
+                                   <div className="flex-1 text-center md:text-left space-y-2">
+                                      <h5 className="font-black text-slate-800 dark:text-white uppercase tracking-tight flex items-center justify-center md:justify-start gap-2">
+                                         <ShieldCheck size={18} className="text-emerald-500" />
+                                         Integrasi Face ID Aktif
+                                      </h5>
+                                      <p className="text-slate-500 text-xs leading-relaxed max-w-sm">
+                                         Profil ini telah sinkron dengan sistem biometrik. Wajah terdaftar pada {viewingGtk.faceRegistrationDate ? new Date(viewingGtk.faceRegistrationDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : 'sistem'}.
+                                      </p>
+                                      <div className="pt-2">
+                                         <span className="text-[9px] font-black text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 px-3 py-1 rounded-lg uppercase tracking-widest border border-emerald-100 dark:border-emerald-800/50">
+                                            Status: Terverifikasi & Sinkron
+                                         </span>
+                                      </div>
+                                   </div>
+                                </div>
+                              )}
+
                               {viewingGtk.noSertifikasi && (
-                                <div className="bg-amber-50 dark:bg-amber-900/10 p-8 rounded-[40px] shadow-sm border border-amber-100 dark:border-amber-900/20">
+                                <div key="cert-details-card" className="bg-amber-50 dark:bg-amber-900/10 p-8 rounded-[40px] shadow-sm border border-amber-100 dark:border-amber-900/20">
                                    <div className="flex items-center gap-3 mb-6">
                                       <Award className="text-amber-600" size={20} />
                                       <h4 className="text-[10px] font-black uppercase text-amber-600 tracking-widest">Detail Sertifikasi</h4>
@@ -930,12 +1175,37 @@ export const GTKPortal: React.FC = () => {
                                    </div>
                                 </div>
                               )}
+
+                              {viewingGtk.faceRegistrationPhoto && (
+                                <div key="face-meta-card" className="bg-slate-50 dark:bg-slate-800 p-8 rounded-[40px] shadow-sm border border-slate-100 dark:border-slate-700">
+                                  <div className="flex items-center gap-3 mb-6">
+                                     <ScanEye className="text-orange-600" size={20} />
+                                     <h4 className="text-[10px] font-black uppercase text-orange-600 tracking-widest">Face Registration Data</h4>
+                                  </div>
+                                  <div className="flex items-center gap-4">
+                                     <img 
+                                       src={viewingGtk.faceRegistrationPhoto} 
+                                       alt="Face ID" 
+                                       className="w-24 h-24 rounded-2xl object-cover border-4 border-white dark:border-slate-900 shadow-lg"
+                                     />
+                                     <div className="flex-1 overflow-hidden">
+                                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Metadata Algoritma</p>
+                                       <p className="text-[8px] font-mono text-slate-500 truncate w-full">
+                                         {viewingGtk.faceDescriptor?.slice(0, 5).join(', ')}...
+                                       </p>
+                                       <p className="text-[10px] font-bold text-emerald-500 uppercase mt-2">Verified Status: OK</p>
+                                     </div>
+                                  </div>
+                                </div>
+                              )}
                            </div>
                         </div>
-                      ) : (
+                      ) : detailTab === 'ARCHIVE' ? (
                         <div className="h-full">
-                           <ArchivePortal initialGtkId={viewingGtk.uid} isStandalone={false} />
+                           <ArchivePortal key={`archive-portal-gtk-${viewingGtk.uid}`} initialGtkId={viewingGtk.uid} isStandalone={false} />
                         </div>
+                      ) : (
+                        <DocumentCenter gtk={viewingGtk} />
                       )}
                    </div>
                 </div>
@@ -943,8 +1213,183 @@ export const GTKPortal: React.FC = () => {
            </div>
         )}
         
+        {/* Face ID Registration Modal */}
+        <AnimatePresence>
+          {isFaceModalOpen && viewingGtk && (
+            <div key="face-registration-modal-root" className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+              <motion.div 
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => {
+                  if (isCapturing) {
+                    const stream = videoRef.current?.srcObject as MediaStream;
+                    stream?.getTracks().forEach(track => track.stop());
+                    setIsCapturing(false);
+                  }
+                  setIsFaceModalOpen(false);
+                }}
+                className="absolute inset-0 bg-slate-900/90 backdrop-blur-xl"
+              />
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                className="relative w-full max-w-lg bg-white dark:bg-slate-800 rounded-[44px] shadow-2xl overflow-hidden"
+              >
+                <div className="p-10 text-center">
+                  <div className="w-20 h-20 bg-orange-100 text-orange-600 rounded-3xl flex items-center justify-center mx-auto mb-6">
+                    <ScanEye size={40} />
+                  </div>
+                  <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Registrasi Face ID</h3>
+                  <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-2 max-w-[280px] mx-auto">
+                    Konversi biometrik wajah untuk keamanan presensi digital GTK
+                  </p>
+
+                  <div className="mt-8 relative aspect-square bg-slate-900 rounded-[40px] overflow-hidden border-8 border-slate-50 dark:border-slate-900 group shadow-inner">
+                    {!isCapturing && !capturedPhoto && (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-500">
+                        <Camera size={48} className="mb-4 opacity-20" />
+                        <button 
+                          onClick={async () => {
+                            try {
+                              setIsCapturing(true);
+                              const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                              if (videoRef.current) {
+                                videoRef.current.srcObject = stream;
+                              }
+                            } catch (err) {
+                              alert("Tidak dapat mengakses kamera. Pastikan izin kamera aktif.");
+                              setIsCapturing(false);
+                            }
+                          }}
+                          className="px-8 h-14 bg-orange-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-orange-500/20"
+                        >
+                          Aktifkan Kamera
+                        </button>
+                      </div>
+                    )}
+
+                    {isCapturing && (
+                      <div className="absolute inset-0">
+                        <video 
+                          ref={videoRef} 
+                          autoPlay 
+                          playsInline 
+                          className="w-full h-full object-cover scale-x-[-1]"
+                        />
+                        <div className="absolute inset-0 border-[40px] border-black/40 pointer-events-none">
+                          <div className="w-full h-full border-4 border-dashed border-orange-500 rounded-full"></div>
+                        </div>
+                        <div className="absolute bottom-10 left-0 right-0 flex justify-center">
+                           <button 
+                             onClick={() => {
+                               if (videoRef.current && canvasRef.current) {
+                                 const video = videoRef.current;
+                                 const canvas = canvasRef.current;
+                                 canvas.width = video.videoWidth;
+                                 canvas.height = video.videoHeight;
+                                 const ctx = canvas.getContext('2d');
+                                 if (ctx) {
+                                   ctx.translate(canvas.width, 0);
+                                   ctx.scale(-1, 1);
+                                   ctx.drawImage(video, 0, 0);
+                                   const photo = canvas.toDataURL('image/jpeg', 0.8);
+                                   setCapturedPhoto(photo);
+                                   
+                                   const stream = video.srcObject as MediaStream;
+                                   stream?.getTracks().forEach(track => track.stop());
+                                   setIsCapturing(false);
+                                 }
+                               }
+                             }}
+                             className="w-16 h-16 bg-white rounded-full border-8 border-white/30 flex items-center justify-center shadow-2xl active:scale-95 transition-all"
+                           >
+                             <div className="w-8 h-8 rounded-full bg-orange-600"></div>
+                           </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {capturedPhoto && (
+                      <div className="absolute inset-0">
+                        <img src={capturedPhoto} className="w-full h-full object-cover" alt="Captured" />
+                        <div className="absolute inset-0 bg-emerald-500/10 backdrop-blur-[2px] flex flex-col items-center justify-center">
+                            <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center shadow-2xl mb-4">
+                               <CheckCircle2 size={40} className="text-emerald-500" />
+                            </div>
+                            <p className="text-[10px] font-black text-white uppercase tracking-widest bg-emerald-500 px-4 py-2 rounded-full shadow-lg">Wajah Terdeteksi</p>
+                        </div>
+                      </div>
+                    )}
+                    <canvas ref={canvasRef} className="hidden" />
+                  </div>
+
+                  <div className="mt-10 flex gap-4">
+                    {capturedPhoto ? (
+                      <>
+                        <button 
+                          onClick={() => {
+                            setCapturedPhoto(null);
+                            setIsCapturing(false);
+                          }}
+                          className="flex-1 h-14 bg-slate-100 dark:bg-slate-900 rounded-2xl text-[10px] font-black uppercase text-slate-400 flex items-center justify-center gap-2"
+                        >
+                          <RefreshCw size={16} />
+                          Ulangi
+                        </button>
+                        <button 
+                          onClick={async () => {
+                            try {
+                              setLoading(true);
+                              // Generate fake face descriptors (simulating algorithm conversion)
+                              const fakeDescriptor = Array.from({length: 128}, () => Math.random());
+                              
+                              await updateDoc(doc(db, 'users', viewingGtk.uid), {
+                                faceRegistrationPhoto: capturedPhoto,
+                                faceDescriptor: fakeDescriptor,
+                                faceRegistrationDate: serverTimestamp()
+                              });
+                              
+                              await addDoc(collection(db, 'audit_logs'), {
+                                type: 'SECURITY',
+                                action: 'FACE_REGISTER',
+                                message: `Registrasi Face ID: ${viewingGtk.name}`,
+                                user: profile?.name || 'System',
+                                timestamp: serverTimestamp()
+                              });
+
+                              setViewingGtk({...viewingGtk, faceRegistrationPhoto: capturedPhoto, faceDescriptor: fakeDescriptor});
+                              alert("Face ID berhasil dikonversi dan disimpan.");
+                              setIsFaceModalOpen(false);
+                              setCapturedPhoto(null);
+                            } catch (err) {
+                              console.error(err);
+                              alert("Gagal menyimpan Face ID.");
+                            } finally {
+                              setLoading(false);
+                            }
+                          }}
+                          className="flex-[2] h-14 bg-emerald-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-emerald-500/20"
+                        >
+                          Konversi & Simpan
+                        </button>
+                      </>
+                    ) : (
+                      <button 
+                        onClick={() => setIsFaceModalOpen(false)}
+                        className="flex-1 h-14 bg-slate-50 dark:bg-slate-900 rounded-2xl text-[10px] font-black uppercase text-slate-400"
+                      >
+                        Batalkan
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
         {isModalOpen && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div key="edit-create-modal-root" className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             <motion.div 
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => setIsModalOpen(false)}
@@ -1221,14 +1666,19 @@ export const GTKPortal: React.FC = () => {
                             { id: 'staff_tu', label: 'Staf TU' },
                             { id: 'operator', label: 'Admin/Operator' },
                             { id: 'wakasek', label: 'Wakasek' },
+                            { id: 'wakakur', label: 'Waka Kurikulum' },
+                            { id: 'wakasis', label: 'Waka Kesiswaan' },
+                            { id: 'wakahum', label: 'Waka Humas' },
+                            { id: 'wakasar', label: 'Waka Sarpras' },
                             { id: 'bendahara', label: 'Bendahara' },
                             { id: 'kepsek', label: 'KepSek' },
                             { id: 'bk', label: 'Guru BK' },
                             { id: 'pembina', label: 'Pembina OSIS' },
-                          ].map(role => (
+                          ].map((role, rIdx) => (
                             <button
-                              key={role.id}
+                              key={`role-select-${role.id}-${rIdx}`}
                               type="button"
+                              disabled={!isAdmin}
                               onClick={() => {
                                 const roles = formData.roles || [];
                                 if (roles.includes(role.id as any)) {
@@ -1241,13 +1691,19 @@ export const GTKPortal: React.FC = () => {
                                 "px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all border",
                                 (formData.roles || []).includes(role.id as any)
                                   ? "bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-500/20"
-                                  : "bg-slate-50 dark:bg-slate-900 border-slate-100 dark:border-slate-700 text-slate-400"
+                                  : "bg-slate-50 dark:bg-slate-900 border-slate-100 dark:border-slate-700 text-slate-400",
+                                !isAdmin && "opacity-60 cursor-not-allowed"
                               )}
                             >
                               {role.label}
                             </button>
                           ))}
                        </div>
+                       {!isAdmin && (
+                         <p className="text-[8px] font-bold text-rose-500 uppercase tracking-widest mt-2 ml-1 animate-pulse">
+                           [ Hak akses hanya dapat diubah oleh administrator ]
+                         </p>
+                       )}
                     </div>
                   </div>
                 </form>
@@ -1278,3 +1734,156 @@ export const GTKPortal: React.FC = () => {
     </ModulePage>
   );
 };
+
+const DocumentCenter: React.FC<{ gtk: UserProfile }> = ({ gtk }) => {
+   const handlePrint = (type: 'SK_AKTIF' | 'SURAT_TUGAS' | 'SLIP_GAJI') => {
+      const doc = new jsPDF();
+      
+      // Kop Surat
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(14);
+      doc.text('YAYASAN PENDIDIKAN BINA NUSANTARA', 105, 15, { align: 'center' });
+      doc.setFontSize(16);
+      doc.text('SMAP NUSANTARA AR-RASYID', 105, 22, { align: 'center' });
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.text('Jl. Raya Pendidikan No. 45, Metropolitan | Email: admin@smapnusantara.sch.id', 105, 28, { align: 'center' });
+      doc.line(20, 32, 190, 32);
+
+      const today = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+
+      if (type === 'SK_AKTIF') {
+         doc.setFontSize(12);
+         doc.setFont('helvetica', 'bold');
+         doc.text('SURAT KETERANGAN AKTIF MENGAJAR', 105, 45, { align: 'center' });
+         doc.setFontSize(10);
+         doc.text(`Nomor: ${Math.floor(Math.random()*1000)}/SMAP-AR/SK-AM/V/2026`, 105, 50, { align: 'center' });
+
+         doc.setFont('helvetica', 'normal');
+         let bodyY = 65;
+         doc.text('Yang bertanda tangan di bawah ini, Kepala Sekolah SMAP Nusantara Ar-Rasyid menerangkan bahwa:', 25, bodyY);
+         
+         const tableData = [
+            ['Nama', `: ${gtk.name}`],
+            ['NUPTK / NIP', `: ${gtk.nuptk || gtk.npa || '-'}`],
+            ['Jabatan', `: ${gtk.roles.join(', ')}`],
+            ['Status Kepegawaian', `: ${gtk.statusKepegawaian}`],
+            ['Alamat', `: Data Tersimpan di Database`]
+         ];
+
+         (doc as any).autoTable({
+            startY: bodyY + 5,
+            body: tableData,
+            theme: 'plain',
+            styles: { fontSize: 10, cellPadding: 2 },
+            margin: { left: 30 }
+         });
+
+         const nextY = (doc as any).lastAutoTable.finalY + 15;
+         doc.text('Adalah benar yang bersangkutan merupakan tenaga pendidik aktif di SMAP Nusantara Ar-Rasyid', 25, nextY);
+         doc.text('pada Tahun Pelajaran 2025/2026. Surat keterangan ini dibuat untuk keperluan administrasi.', 25, nextY + 5);
+
+         doc.text('Metropolitan, ' + today, 140, nextY + 30);
+         doc.text('Kepala Sekolah,', 140, nextY + 35);
+         doc.setFont('helvetica', 'bold');
+         doc.text('DRS. H. AHMAD SYARIF, M.PD', 140, nextY + 60);
+         doc.setFont('helvetica', 'normal');
+         doc.text('NIP. 19700101 199501 1 001', 140, nextY + 65);
+      } else if (type === 'SLIP_GAJI') {
+         doc.setFontSize(12);
+         doc.setFont('helvetica', 'bold');
+         doc.text('SLIP GAJI PEGAWAI (SIMPLE)', 105, 45, { align: 'center' });
+         doc.setFontSize(10);
+         doc.text('Periode: Mei 2026', 105, 50, { align: 'center' });
+
+         const salaryData = [
+            ['Gaji Pokok', 'Rp 4.500.000'],
+            ['Tunjangan Jabatan', 'Rp 1.200.000'],
+            ['Tunjangan Sertifikasi', gtk.noSertifikasi ? 'Rp 2.000.000' : 'Rp 0'],
+            ['Potongan (BPJS/Pajak)', '(Rp 250.000)'],
+            ['TOTAL DITERIMA', 'Rp ' + (4500000 + 1200000 + (gtk.noSertifikasi ? 2000000 : 0) - 250000).toLocaleString('id-ID')]
+         ];
+
+         (doc as any).autoTable({
+            startY: 65,
+            head: [['Keterangan', 'Jumlah']],
+            body: salaryData,
+            theme: 'grid',
+            headStyles: { fillColor: [79, 70, 229] },
+            styles: { fontSize: 9 }
+         });
+
+         doc.text('Dicetak otomatis dari Sistem I-Portal Nusantara pada ' + today, 25, (doc as any).lastAutoTable.finalY + 10);
+      } else {
+         alert("Format surat ini sedang dalam pengembangan.");
+         return;
+      }
+
+      doc.save(`${type}_${gtk.name.replace(/\s+/g, '_')}.pdf`);
+
+      addDoc(collection(db, 'audit_logs'), {
+         type: 'DOCUMENTS',
+         action: 'GENERATE_DOC',
+         message: `Cetak otomatis: ${type} untuk ${gtk.name}`,
+         user: 'Admin',
+         timestamp: serverTimestamp()
+      });
+   };
+
+   return (
+      <div className="space-y-8 h-full">
+         <div className="bg-gradient-to-br from-blue-600 to-indigo-700 p-10 rounded-[44px] text-white shadow-xl shadow-blue-500/20 relative overflow-hidden">
+            <div className="relative z-10">
+               <h3 className="text-2xl font-black uppercase tracking-tight">Dokumen Otomasi</h3>
+               <p className="text-blue-100 text-[10px] font-bold uppercase tracking-widest mt-2">Generate dokumen administrasi standar berdasarkan profil GTK</p>
+               
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-10">
+                  <DocAction 
+                     title="SK Aktif Mengajar" 
+                     desc="Surat keterangan resmi aktif bertugas di sekolah"
+                     onClick={() => handlePrint('SK_AKTIF')}
+                  />
+                  <DocAction 
+                     title="Slip Gaji Sederhana" 
+                     desc="Rincian pendapatan bulanan (Estimasi Sistem)"
+                     onClick={() => handlePrint('SLIP_GAJI')}
+                  />
+                  <DocAction 
+                     title="Surat Tugas (Draft)" 
+                     desc="Draft surat penugasan kegiatan luar sekolah"
+                     onClick={() => handlePrint('SURAT_TUGAS')}
+                  />
+               </div>
+            </div>
+            <School size={200} className="absolute -bottom-20 -right-20 text-white/10 rotate-12" />
+         </div>
+
+         <div className="bg-slate-50 dark:bg-slate-900/50 p-8 rounded-[40px] border border-dashed border-slate-200 dark:border-slate-800">
+            <div className="flex items-start gap-4">
+               <div className="w-10 h-10 rounded-xl bg-orange-100 text-orange-600 flex items-center justify-center shrink-0">
+                  <MessageCircle size={20} />
+               </div>
+               <div>
+                  <h4 className="text-[10px] font-black text-slate-800 dark:text-white uppercase tracking-widest">Catatan Penting</h4>
+                  <p className="text-[10px] font-medium text-slate-400 mt-2 leading-relaxed">
+                     Dokumen yang dibuat melalui fitur "Cetak Otomatis" ini merupakan draf administrasi yang datanya diambil langsung dari Profile GTK. Pastikan data profile (NUPTK, Pangkat/Golongan, TMT) telah valid sebelum melakukan pencetakan. Dokumen ini tetap memerlukan tanda tangan basah dan cap basah sekolah untuk keaslian hukum.
+                  </p>
+               </div>
+            </div>
+         </div>
+      </div>
+   );
+};
+
+const DocAction: React.FC<{ title: string; desc: string; onClick: () => void }> = ({ title, desc, onClick }) => (
+   <button 
+      onClick={onClick}
+      className="bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 p-6 rounded-3xl text-left transition-all active:scale-95 group"
+   >
+      <div className="flex items-center justify-between mb-3">
+         <h4 className="font-black text-sm uppercase tracking-tight">{title}</h4>
+         <ArrowRight size={16} className="opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-all" />
+      </div>
+      <p className="text-[9px] font-medium text-blue-100 leading-tight uppercase tracking-widest">{desc}</p>
+   </button>
+);

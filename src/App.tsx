@@ -28,6 +28,8 @@ import { StaffAttendance } from './components/StaffAttendance';
 import { AttendanceAdmin } from './components/AttendanceAdmin';
 import { DownloadCenter } from './components/DownloadCenter';
 import { PageLayout } from './components/PageLayout';
+import { Announcements } from './components/Announcements';
+import { AcademicCalendar } from './components/AcademicCalendar';
 import { motion } from 'motion/react';
 import { ArrowLeft, LayoutGrid } from 'lucide-react';
 
@@ -178,7 +180,8 @@ export default function App() {
           <Route path="/student/materials" element={<ProtectedRoute><PlaceholderPage title="Materi Pembelajaran" subtitle="Student Portal" /></ProtectedRoute>} />
 
           {/* Common Routes */}
-          <Route path="/announcements" element={<ProtectedRoute><PlaceholderPage title="Pengumuman" subtitle="School Info" /></ProtectedRoute>} />
+          <Route path="/announcements" element={<ProtectedRoute><Announcements /></ProtectedRoute>} />
+          <Route path="/calendar" element={<ProtectedRoute><AcademicCalendar /></ProtectedRoute>} />
           <Route path="/messages" element={<ProtectedRoute><PlaceholderPage title="Pesan Terintegrasi" subtitle="Communication" /></ProtectedRoute>} />
 
           <Route path="*" element={<Navigate to="/" />} />

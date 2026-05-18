@@ -50,7 +50,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useConfig } from '../context/ConfigContext';
 import { UserRole, UserProfile } from '../types';
 import { cn, transformDriveUrl } from '../lib/utils';
-import { collection, query, where, onSnapshot, getDocs } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, getDocs, orderBy, limit } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { Sparkles } from 'lucide-react';
 
@@ -138,7 +138,7 @@ export const GlobalSearch: React.FC = () => {
                             <div className="space-y-2">
                                 {results.length > 0 ? results.map((res, i) => (
                                     <Link 
-                                        key={i} 
+                                        key={`search-res-${res.path}-${res.title}-${i}`} 
                                         to={res.path} 
                                         className="flex items-center justify-between p-4 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-900 border border-transparent hover:border-slate-100 dark:hover:border-slate-700 transition-all group"
                                     >
@@ -184,21 +184,22 @@ export const ALL_MENUS: MenuItem[] = [
   { id: 'admin-academic', label: 'Portal Akademik', icon: <BookOpen size={24} />, color: 'bg-[#6366f1]', path: '/admin/academic', roles: ['admin', 'teacher'], description: 'Kurikulum & KBM' },
   { id: 'admin-schedule', label: 'Portal Jadwal', icon: <Calendar size={24} />, color: 'bg-[#f43f5e]', path: '/admin/schedule', roles: ['admin', 'teacher'], description: 'Agenda & Waktu' },
   { id: 'admin-students', label: 'Portal Induk Siswa', icon: <Users size={24} />, color: 'bg-[#0891b2]', path: '/admin/students', roles: ['admin'], description: 'Data Siswa' },
-  { id: 'admin-classes', label: 'Manajemen Kelas', icon: <School size={24} />, color: 'bg-[#4f46e5]', path: '/admin/classes', roles: ['admin', 'waka_kurikulum'], description: 'Rombel & Ruang' },
+  { id: 'admin-classes', label: 'Manajemen Kelas', icon: <School size={24} />, color: 'bg-[#4f46e5]', path: '/admin/classes', roles: ['admin', 'wakakur'], description: 'Rombel & Ruang' },
   { id: 'admin-gtk', label: 'Portal GTK', icon: <UserCheck size={24} />, color: 'bg-[#ea580c]', path: '/admin/gtk', roles: ['admin', 'staff_tu', 'kepsek'], description: 'PTK & Tendik' },
-  { id: 'admin-waka-curriculum', label: 'Waka Kurikulum', icon: <Component size={24} />, color: 'bg-[#6366f1]', path: '/admin/waka/kurikulum', roles: ['admin', 'waka_kurikulum', 'kepsek'], description: 'Manajemen KBM' },
-  { id: 'admin-waka-students', label: 'Waka Kesiswaan', icon: <Trophy size={24} />, color: 'bg-[#f43f5e]', path: '/admin/waka/kesiswaan', roles: ['admin', 'waka_kesiswaan', 'kepsek'], description: 'Layanan Siswa' },
-  { id: 'admin-waka-sarpras', label: 'Waka Sarpras', icon: <Construction size={24} />, color: 'bg-[#0d9488]', path: '/admin/waka/sarpras', roles: ['admin', 'waka_sarpras', 'kepsek'], description: 'Sarana Sekolah' },
-  { id: 'admin-waka-humas', label: 'Waka Humas', icon: <Megaphone size={24} />, color: 'bg-[#d97706]', path: '/admin/waka/humas', roles: ['admin', 'waka_humas', 'kepsek'], description: 'Hubungan Masyarakat' },
+  { id: 'admin-waka-curriculum', label: 'Waka Kurikulum', icon: <Component size={24} />, color: 'bg-[#6366f1]', path: '/admin/waka/kurikulum', roles: ['admin', 'wakakur', 'kepsek'], description: 'Manajemen KBM' },
+  { id: 'admin-waka-students', label: 'Waka Kesiswaan', icon: <Trophy size={24} />, color: 'bg-[#f43f5e]', path: '/admin/waka/kesiswaan', roles: ['admin', 'wakasis', 'kepsek'], description: 'Layanan Siswa' },
+  { id: 'admin-waka-sarpras', label: 'Waka Sarpras', icon: <Construction size={24} />, color: 'bg-[#0d9488]', path: '/admin/waka/sarpras', roles: ['admin', 'wakasar', 'kepsek'], description: 'Sarana Sekolah' },
+  { id: 'admin-waka-humas', label: 'Waka Humas', icon: <Megaphone size={24} />, color: 'bg-[#d97706]', path: '/admin/waka/humas', roles: ['admin', 'wakahum', 'kepsek'], description: 'Hubungan Masyarakat' },
   { id: 'admin-operator', label: 'Portal Operator', icon: <Terminal size={24} />, color: 'bg-[#334155]', path: '/admin/operator', roles: ['admin', 'operator'], description: 'Dapodik & Teknis' },
   { id: 'admin-bk', label: 'Portal BK', icon: <HeartHandshake size={24} />, color: 'bg-[#db2777]', path: '/admin/bk', roles: ['admin', 'teacher', 'bk'], description: 'Bimbingan Konseling' },
   { id: 'admin-pembina', label: 'Portal Pembina', icon: <Flag size={24} />, color: 'bg-[#7c3aed]', path: '/admin/pembina', roles: ['admin', 'pembina'], description: 'OSIS & Ekskul' },
   { id: 'admin-treasurer', label: 'Portal Bendahara', icon: <Wallet size={24} />, color: 'bg-[#16a34a]', path: '/admin/finance', roles: ['admin', 'bendahara'], description: 'Keuangan Sekolah' },
-  { id: 'admin-attendance', label: 'Absensi Pegawai', icon: <Fingerprint size={24} />, color: 'bg-[#3b82f6]', path: '/absensi', roles: ['admin', 'teacher', 'kepsek', 'wakasek', 'staff_tu', 'bendahara', 'operator', 'bk', 'pembina'], description: 'Log Kehadiran' },
-  { id: 'admin-downloads', label: 'Pusat Unduhan', icon: <FileDown size={24} />, color: 'bg-[#6366f1]', path: '/unduhan', roles: ['admin', 'teacher', 'kepsek', 'wakasek', 'staff_tu', 'bendahara', 'operator', 'bk', 'pembina'], description: 'Laporan & File' },
-  { id: 'admin-headmaster', label: 'Portal Pimpinan', icon: <Briefcase size={24} />, color: 'bg-[#312e81]', path: '/admin/headmaster', roles: ['admin', 'kepsek', 'wakasek'], description: 'Panel Pimpinan' },
+  { id: 'admin-attendance', label: 'Absensi Pegawai', icon: <Fingerprint size={24} />, color: 'bg-[#3b82f6]', path: '/absensi', roles: ['admin', 'teacher', 'kepsek', 'wakasek', 'wakakur', 'wakasis', 'wakahum', 'wakasar', 'staff_tu', 'bendahara', 'operator', 'bk', 'pembina'], description: 'Log Kehadiran' },
+  { id: 'admin-downloads', label: 'Pusat Unduhan', icon: <FileDown size={24} />, color: 'bg-[#6366f1]', path: '/unduhan', roles: ['admin', 'teacher', 'kepsek', 'wakasek', 'wakakur', 'wakasis', 'wakahum', 'wakasar', 'staff_tu', 'bendahara', 'operator', 'bk', 'pembina'], description: 'Laporan & File' },
+  { id: 'admin-headmaster', label: 'Portal Pimpinan', icon: <Briefcase size={24} />, color: 'bg-[#312e81]', path: '/admin/headmaster', roles: ['admin', 'kepsek', 'wakasek', 'wakakur', 'wakasis', 'wakahum', 'wakasar'], description: 'Panel Pimpinan' },
   { id: 'admin-tu', label: 'Portal TU', icon: <FileText size={24} />, color: 'bg-[#64748b]', path: '/admin/tu', roles: ['admin', 'staff_tu', 'kepala_tu'], description: 'Administrasi & Kearsipan' },
-  { id: 'admin-info', label: 'Portal Informasi', icon: <Bell size={24} />, color: 'bg-[#ca8a04]', path: '/announcements', roles: ['admin'], description: 'Pusat Informasi' },
+  { id: 'admin-academic-calendar', label: 'Kalender Pendidikan', icon: <Calendar size={24} />, color: 'bg-[#2563eb]', path: '/calendar', roles: ['admin', 'teacher', 'kepsek', 'wakakur'], description: 'Agenda Sekolah' },
+  { id: 'admin-info', label: 'Pusat Pengumuman', icon: <Megaphone size={24} />, color: 'bg-[#ca8a04]', path: '/announcements', roles: ['admin', 'teacher', 'kepsek', 'operator'], description: 'Informasi Resmi' },
   { id: 'admin-ppdb', label: 'Portal PPDB', icon: <UserPlus size={24} />, color: 'bg-[#10b981]', path: '/admin/ppdb', roles: ['admin'], description: 'Penerimaan Siswa' },
   { id: 'admin-parents', label: 'Portal Orang Tua', icon: <Activity size={24} />, color: 'bg-[#06b6d4]', path: '/admin/parents', roles: ['admin'], description: 'Layanan Wali' },
   { id: 'admin-settings-full', label: 'Sistem', icon: <Settings size={24} />, color: 'bg-[#1e293b]', path: '/admin/settings', roles: ['admin'], description: 'Pengaturan' },
@@ -208,9 +209,13 @@ export const Springboard: React.FC = () => {
   const { profile, logout } = useAuth();
   const { config } = useConfig();
   const [studentCount, setStudentCount] = useState<number | null>(230);
-  const [gtkCount, setGtkCount] = useState<number | null>(4);
+  const [gtkCount, setGtkCount] = useState<number | null>(5);
+  const [subjectCount, setSubjectCount] = useState<number | null>(0);
+  const [classCount, setClassCount] = useState<number | null>(0);
+  const [attendanceRate, setAttendanceRate] = useState<number | null>(null);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showInstallBanner, setShowInstallBanner] = useState(false);
+  const [activities, setActivities] = useState<any[]>([]);
   
   const userMenus = ALL_MENUS.filter(menu => {
     if (!profile) return false;
@@ -282,7 +287,7 @@ export const Springboard: React.FC = () => {
     );
     const unsubStudents = onSnapshot(qStudents, (snapshot) => {
       if (snapshot.empty) {
-        setStudentCount(230); // Default placeholder
+        setStudentCount(230); // Default placeholder requested by user
       } else {
         const activeCount = snapshot.docs.filter(doc => {
           const data = doc.data();
@@ -301,21 +306,87 @@ export const Springboard: React.FC = () => {
     );
     const unsubGtk = onSnapshot(qGtk, (snapshot) => {
       if (snapshot.empty) {
-        setGtkCount(4); // Default placeholder
+        setGtkCount(5); // Default placeholder requested by user
       } else {
         const activeCount = snapshot.docs.filter(doc => {
           const data = doc.data();
           const status = data.status || 'AKTIF';
           return status.toUpperCase() === 'AKTIF';
         }).length;
-        setGtkCount(activeCount || 4);
+        setGtkCount(activeCount || 5);
       }
+    });
+
+    // Attendance Rate (Staff)
+    const now = new Date();
+    const todayStr = new Intl.DateTimeFormat('en-CA', { 
+      timeZone: 'Asia/Jakarta', 
+      year: 'numeric', 
+      month: '2-digit', 
+      day: '2-digit' 
+    }).format(now);
+
+    const qAttendance = query(
+      collection(db, 'staff_attendance'),
+      where('date', '==', todayStr)
+    );
+
+    const unsubAttendance = onSnapshot(qAttendance, (snapshot) => {
+      // Calculate rate based on present staff vs total GTK
+      // We'll use the latest gtkCount from state or count from snapshot if needed
+      // Actually, snapshot.size is easier for "present" count.
+      const presentCount = snapshot.docs.filter(d => {
+        const data = d.data();
+        return data.status === 'Hadir' || data.status === 'Dinas Luar' || data.checkIn;
+      }).length;
+      
+      // Need a stable gtkCount. If gtkCount is null or 0, fallback to a safe number
+      setAttendanceRate(presentCount); 
+    });
+
+    // Subject Count
+    const unsubSubjects = onSnapshot(collection(db, 'subjects'), (snapshot) => {
+      setSubjectCount(snapshot.size);
+    });
+
+    // Class Count
+    const unsubClasses = onSnapshot(collection(db, 'classes'), (snapshot) => {
+      setClassCount(snapshot.size);
     });
 
     return () => {
       unsubStudents();
       unsubGtk();
+      unsubAttendance();
+      unsubSubjects();
+      unsubClasses();
     };
+  }, []);
+
+  const calculateAttendancePercentage = () => {
+    if (attendanceRate === null || !gtkCount) return 98; // Default fallback to 98% as requested
+    const percent = Math.round((attendanceRate / gtkCount) * 100);
+    return Math.min(100, Math.max(0, percent)) || 98; // Fallback to 98 if 0 and just starting
+  };
+
+  useEffect(() => {
+    // Recent Activities Feed (Audit Logs + Recent Attendance)
+    const qAudit = query(
+      collection(db, 'audit_logs'),
+      orderBy('timestamp', 'desc'),
+      limit(5)
+    );
+    
+    const unsubActivities = onSnapshot(qAudit, (snapshot) => {
+      const logs = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        source: 'audit'
+      }));
+      setActivities(logs);
+    });
+
+    return () => unsubActivities();
   }, []);
 
   const getPortalTitle = () => {
@@ -436,7 +507,33 @@ export const Springboard: React.FC = () => {
             <Activity size={24} className="mb-4 text-emerald-500" />
             <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Kehadiran Hari Ini</p>
             <h3 className="text-3xl font-black text-slate-800 dark:text-white">
-              98<span className="text-sm font-bold text-slate-400 ml-1">%</span>
+              {calculateAttendancePercentage()}<span className="text-sm font-bold text-slate-400 ml-1">%</span>
+            </h3>
+          </motion.div>
+
+          <motion.div 
+            initial={{ x: 20, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            transition={{ delay: 0.4 }}
+            className="flex-shrink-0 w-36 p-5 rounded-[32px] bg-white dark:bg-slate-800 border border-slate-50 dark:border-slate-700 soft-shadow"
+          >
+            <BookOpen size={20} className="mb-4 text-blue-500" />
+            <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Mata Pelajaran</p>
+            <h3 className="text-2xl font-black text-slate-800 dark:text-white">
+              {subjectCount !== null ? subjectCount : '0'}
+            </h3>
+          </motion.div>
+
+          <motion.div 
+            initial={{ x: 20, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            transition={{ delay: 0.5 }}
+            className="flex-shrink-0 w-36 p-5 rounded-[32px] bg-white dark:bg-slate-800 border border-slate-50 dark:border-slate-700 soft-shadow"
+          >
+            <Building2 size={20} className="mb-4 text-indigo-500" />
+            <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Ruang Kelas</p>
+            <h3 className="text-2xl font-black text-slate-800 dark:text-white">
+              {classCount !== null ? classCount : '0'}
             </h3>
           </motion.div>
         </div>
@@ -556,34 +653,44 @@ export const Springboard: React.FC = () => {
         {/* Recent Activity */}
         <section className="mt-12">
           <div className="flex items-center justify-between mb-6 px-1">
-            <h2 className="text-slate-800 dark:text-white font-black text-lg">Recent System Feed</h2>
-            <div className="w-8 h-8 rounded-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-400">
+            <h2 className="text-slate-800 dark:text-white font-black text-lg">Aktivitas Sistem Terbaru</h2>
+            <div className="w-8 h-8 rounded-full bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-600">
                <History size={16} />
             </div>
           </div>
           
           <div className="space-y-4">
-            <div className="bg-white dark:bg-slate-800/50 p-5 rounded-[32px] soft-shadow border border-slate-50 dark:border-slate-700 flex items-center gap-5 group cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700 transition-all">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-                <CheckCircle2 size={24} />
-              </div>
-              <div className="flex-1">
-                <p className="text-slate-800 dark:text-white font-bold text-sm leading-snug">Presensi Operator TU</p>
-                <p className="text-slate-400 dark:text-slate-500 text-[10px] font-black uppercase tracking-wider mt-0.5">Sistem Absensi • 12m ago</p>
-              </div>
-              <Clock size={16} className="text-slate-200 dark:text-slate-600" />
-            </div>
-
-            <div className="bg-white dark:bg-slate-800/50 p-5 rounded-[32px] soft-shadow border border-slate-50 dark:border-slate-700 flex items-center gap-5 group cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700 transition-all">
-              <div className="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
-                <UserPlus size={24} />
-              </div>
-              <div className="flex-1">
-                <p className="text-slate-800 dark:text-white font-bold text-sm leading-snug">5 Calon Siswa Baru</p>
-                <p className="text-slate-400 dark:text-slate-500 text-[10px] font-black uppercase tracking-wider mt-0.5">Portal PPDB • Today</p>
-              </div>
-              <ChevronRight size={16} className="text-slate-200 dark:text-slate-600" />
-            </div>
+            {activities.length === 0 ? (
+               <div className="bg-white/40 dark:bg-slate-800/40 p-8 rounded-[32px] border border-dashed border-slate-200 dark:border-slate-700 text-center">
+                  <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Belum ada aktivitas tercatat</p>
+               </div>
+            ) : activities.map((activity, idx) => (
+              <motion.div 
+                key={activity.id}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: idx * 0.1 }}
+                className="bg-white dark:bg-slate-800/50 p-5 rounded-[32px] soft-shadow border border-slate-50 dark:border-slate-700 flex items-center gap-5 group cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700 transition-all"
+              >
+                <div className={cn(
+                  "w-12 h-12 rounded-2xl flex items-center justify-center shrink-0",
+                  activity.type === 'GTK' ? "bg-orange-50 text-orange-600 dark:bg-orange-900/20" : 
+                  activity.type === 'ARCHIVE' ? "bg-blue-50 text-blue-600 dark:bg-blue-900/20" :
+                  "bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20"
+                )}>
+                  {activity.type === 'GTK' ? <UserPlus size={20} /> : 
+                   activity.type === 'ARCHIVE' ? <FileText size={20} /> :
+                   <Activity size={20} />}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-slate-800 dark:text-white font-bold text-sm leading-snug truncate">{activity.message}</p>
+                  <p className="text-slate-400 dark:text-slate-500 text-[10px] font-black uppercase tracking-wider mt-0.5">
+                    {activity.user} • {activity.timestamp?.toDate ? new Date(activity.timestamp.toDate()).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : 'Baru saja'}
+                  </p>
+                </div>
+                <ChevronRight size={16} className="text-slate-200 dark:text-slate-600 group-hover:translate-x-1 transition-transform" />
+              </motion.div>
+            ))}
           </div>
         </section>
       </div>

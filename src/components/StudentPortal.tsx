@@ -117,7 +117,8 @@ export const StudentPortal: React.FC = () => {
   const [duplicates, setDuplicates] = useState<any[]>([]);
   const [mutationType, setMutationType] = useState('Mutasi Keluar');
   const [mutationReason, setMutationReason] = useState('');
-  const [mutationDate, setMutationDate] = useState(new Date().toISOString().split('T')[0]);
+  const getTodayWIB = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(new Date());
+  const [mutationDate, setMutationDate] = useState(getTodayWIB());
   const [targetSchool, setTargetSchool] = useState('');
   
   // Mutasi History State
@@ -1230,8 +1231,8 @@ export const StudentPortal: React.FC = () => {
                     Komposisi Jenis Kelamin
                   </h4>
                 </div>
-                <div className="h-64">
-                  <ResponsiveContainer width="100%" height="100%">
+                <div className="w-full min-h-[250px]">
+                  <ResponsiveContainer width="100%" height={250}>
                     <PieChart>
                       <Pie
                         data={genderData}
@@ -1262,8 +1263,8 @@ export const StudentPortal: React.FC = () => {
                     Statistik Status Siswa
                   </h4>
                 </div>
-                <div className="h-64">
-                  <ResponsiveContainer width="100%" height="100%">
+                <div className="w-full min-h-[250px]">
+                  <ResponsiveContainer width="100%" height={250}>
                     <BarChart data={statusData}>
                       <XAxis dataKey="name" fontSize={10} axisLine={false} tickLine={false} />
                       <YAxis fontSize={10} axisLine={false} tickLine={false} />

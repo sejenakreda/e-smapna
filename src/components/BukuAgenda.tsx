@@ -57,13 +57,15 @@ export const BukuAgenda: React.FC = () => {
   const [selectedMail, setSelectedMail] = useState<MailRecord | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
+  const getTodayWIB = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(new Date());
+  
   const [formData, setFormData] = useState<Partial<MailRecord>>({
     type: 'IN',
     noSurat: '',
     perihal: '',
     pengirim: '',
     penerima: 'Kepala Sekolah',
-    tanggal: new Date().toISOString().split('T')[0],
+    tanggal: getTodayWIB(),
     kategori: 'PENTING',
     keterangan: ''
   });
@@ -120,7 +122,15 @@ export const BukuAgenda: React.FC = () => {
       }
 
       setIsModalOpen(false);
-      setFormData({ type: 'IN', noSurat: '', perihal: '', pengirim: '', penerima: 'Kepala Sekolah', tanggal: new Date().toISOString().split('T')[0], kategori: 'PENTING' });
+      setFormData({ 
+        type: 'IN', 
+        noSurat: '', 
+        perihal: '', 
+        pengirim: '', 
+        penerima: 'Kepala Sekolah', 
+        tanggal: getTodayWIB(), 
+        kategori: 'PENTING' 
+      });
     } catch (err) {
       handleFirestoreError(err, isEditing ? OperationType.UPDATE : OperationType.CREATE, 'mail_agenda');
     } finally {

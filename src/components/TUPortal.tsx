@@ -32,10 +32,11 @@ import {
   onSnapshot 
 } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { useAuth } from '../hooks/useAuth';
 import { cn } from '../lib/utils';
 
 export const TUPortal: React.FC = () => {
-  const { profile } = useConfig();
+  const { profile } = useAuth();
   const [activePortal, setActivePortal] = useState<'DASHBOARD' | 'GTK' | 'KEARSIPAN' | 'AGENDA'>('DASHBOARD');
   const [activities, setActivities] = useState<any[]>([]);
   const [notifications, setNotifications] = useState<any[]>([]);
