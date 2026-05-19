@@ -86,13 +86,13 @@ export const GTKPortal: React.FC = () => {
     // Header (KOP SURAT)
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(14);
-    doc.text('YAYASAN PENDIDIKAN BINA NUSANTARA', 105, 15, { align: 'center' });
+    doc.text('YAYASAN PENDIDIKAN PGRI NARINGGUL', 105, 15, { align: 'center' });
     doc.setFontSize(16);
-    doc.text('SMAP NUSANTARA AR-RASYID', 105, 22, { align: 'center' });
+    doc.text('SMAS PGRI NARINGGUL', 105, 22, { align: 'center' });
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
-    doc.text('Jl. Raya Pendidikan No. 45, Kota Metropolitan, Indonesia', 105, 28, { align: 'center' });
-    doc.text('Email: info@smapnusantara.sch.id | Telp: (021) 555-0123', 105, 33, { align: 'center' });
+    doc.text('Parigi Natal, Naringgul, Cianjur, Jawa Barat', 105, 28, { align: 'center' });
+    doc.text('Email: info@smapna.sh.id | NPSN: 20252119', 105, 33, { align: 'center' });
     
     doc.setLineWidth(1);
     doc.line(20, 38, 190, 38);
@@ -386,7 +386,7 @@ export const GTKPortal: React.FC = () => {
 
         let successCount = 0;
         for (const row of data) {
-          const email = row.Email || row.email || `${row.Nama?.toLowerCase().replace(/\s+/g, '')}@sekolah.sch.id`;
+          const email = row.Email || row.email || `${row.Nama?.toLowerCase().replace(/\s+/g, '')}@smapna.com`;
           const roles = (row.Roles || row.roles || 'teacher').split(',').map((r: string) => r.trim());
           
           const gtkData: Partial<UserProfile> = {
@@ -456,19 +456,50 @@ export const GTKPortal: React.FC = () => {
           timestamp: serverTimestamp()
         });
       } else {
-        const docRef = doc(collection(db, 'users'));
-        await setDoc(docRef, {
-          ...dataToSave,
-          createdAt: serverTimestamp(),
-          uid: docRef.id
-        });
-        await addDoc(collection(db, 'audit_logs'), {
-          type: 'GTK',
-          action: 'CREATE',
-          message: `GTK Baru: ${formData.name}`,
-          user: profile?.name || 'Operator',
-          timestamp: serverTimestamp()
-        });
+        // First create the auth user to get a UID
+        try {
+          const syncRes = await fetch('/api/admin/create-user', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email: formData.email,
+              password: 'smapna123',
+              displayName: formData.name
+            })
+          });
+          
+          if (syncRes.ok) {
+            const { uid } = await syncRes.json();
+            await setDoc(doc(db, 'users', uid), {
+              ...dataToSave,
+              uid: uid,
+              createdAt: serverTimestamp(),
+            });
+            
+            await addDoc(collection(db, 'audit_logs'), {
+              type: 'GTK',
+              action: 'CREATE',
+              message: `GTK Baru & Sync: ${formData.name}`,
+              user: profile?.name || 'Operator',
+              timestamp: serverTimestamp()
+            });
+          } else {
+            // Fallback if API fails but we still want to save to Firestore
+            const docRef = doc(collection(db, 'users'));
+            await setDoc(docRef, {
+              ...dataToSave,
+              createdAt: serverTimestamp(),
+              uid: docRef.id
+            });
+          }
+        } catch (e) {
+          const docRef = doc(collection(db, 'users'));
+          await setDoc(docRef, {
+            ...dataToSave,
+            createdAt: serverTimestamp(),
+            uid: docRef.id
+          });
+        }
       }
 
       setIsModalOpen(false);
@@ -478,6 +509,61 @@ export const GTKPortal: React.FC = () => {
       handleFirestoreError(err, isEditing ? OperationType.UPDATE : OperationType.CREATE, 'users');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSyncIndividual = async (gtk: UserProfile) => {
+    if (!isAdmin) {
+      alert("Hanya Admin yang dapat melakukan sinkronisasi paksa.");
+      return;
+    }
+
+    // Protection: If user already has a UID and looks synced
+    if (gtk.uid && gtk.uid.length > 10) {
+      // We still allow a re-sync if the user really wants to, 
+      // but we inform them if it looks already setup.
+      console.log("User already has a valid UID, checking status...");
+    }
+    
+    setLoading(true);
+    let messageToShow = '';
+    try {
+      const response = await fetch('/api/admin/sync-users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ users: [gtk] })
+      });
+      
+      const results = await response.json();
+      
+      if (!response.ok) throw new Error(results.error || "Gagal sinkronisasi");
+      
+      const result = results[0];
+      if (result.status === 'error') {
+        messageToShow = `Gagal Sinkronisasi: ${result.message}`;
+      } else {
+        const isAlreadyActive = result.status === 'exists';
+        messageToShow = isAlreadyActive 
+          ? `INFO: Akun ${gtk.name} sudah tersinkronisasi dan aktif!\n\nEmail: ${result.email}\nStatus: Siap digunakan.\n\nTidak perlu sinkronisasi ulang, user tinggal login.`
+          : `SINKRONISASI BERHASIL!\n\nAkun baru telah dibuat untuk ${gtk.name}.\nPassword default: smapna123\n\nUser sekarang bisa masuk ke aplikasi.`;
+        
+        await addDoc(collection(db, 'audit_logs'), {
+          type: 'GTK',
+          action: 'SYNC',
+          message: `Sinkronisasi Manual Auth: ${gtk.name} (${result.status})`,
+          user: profile?.name || 'Operator',
+          timestamp: serverTimestamp()
+        });
+      }
+    } catch (err: any) {
+      console.error(err);
+      messageToShow = `Kesalahan Sinkronisasi: ${err.message}\n\nPastikan Service Account JSON sudah terpasang dengan benar di server.`;
+    } finally {
+      setLoading(false);
+      // Small delay to let the loading UI fade out before the alert blocks the thread
+      setTimeout(() => {
+        if (messageToShow) alert(messageToShow);
+      }, 300);
     }
   };
 
@@ -934,6 +1020,15 @@ export const GTKPortal: React.FC = () => {
                                     >
                                       <Mail size={14} />
                                     </a>
+                                    {isAdmin && (
+                                      <button 
+                                        onClick={(e) => { e.stopPropagation(); handleSyncIndividual(gtk); }}
+                                        className="p-2 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-xl text-slate-400 hover:text-amber-600 transition-all"
+                                        title="Sinkronisasi Login"
+                                      >
+                                        <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
+                                      </button>
+                                    )}
                                     {canEdit(gtk) && (
                                       <button 
                                         onClick={(e) => { e.stopPropagation(); handleEdit(gtk); }}

@@ -12,7 +12,7 @@ interface ConfigContextType {
 const DEFAULT_CONFIG: AppConfig = {
   appName: 'E-SMAPNA',
   schoolLogo: 'logo_smapna.png',
-  academicYear: '2025/2026 Genap',
+  academicYear: '2025/2026',
   language: 'Bahasa Indonesia',
   theme: 'Modern Glass',
   darkMode: false,

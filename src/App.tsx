@@ -86,67 +86,67 @@ export default function App() {
 
           {/* Admin Routes */}
           <Route path="/admin/users" element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={['admin', 'kepsek']}>
               <AdminUsers />
             </ProtectedRoute>
           } />
           <Route path="/admin/profile" element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={['admin']}>
               <AdminProfile />
             </ProtectedRoute>
           } />
           <Route path="/admin/classes" element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={['admin', 'wakakur']}>
               <ClassPortal />
             </ProtectedRoute>
           } />
           <Route path="/admin/students" element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={['admin']}>
               <StudentPortal />
             </ProtectedRoute>
           } />
           <Route path="/admin/gtk" element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={['admin', 'staff_tu', 'kepsek']}>
               <GTKPortal />
             </ProtectedRoute>
           } />
           <Route path="/admin/tu" element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={['admin', 'staff_tu', 'kepala_tu']}>
               <TUPortal />
             </ProtectedRoute>
           } />
           <Route path="/admin/operator" element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={['admin', 'operator']}>
               <OperatorPortal />
             </ProtectedRoute>
           } />
           <Route path="/admin/waka/kurikulum" element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={['admin', 'wakakur', 'kepsek']}>
               <WakaKurikulumPortal />
             </ProtectedRoute>
           } />
           <Route path="/admin/waka/kesiswaan" element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={['admin', 'wakasis', 'kepsek']}>
               <WakaKesiswaanPortal />
             </ProtectedRoute>
           } />
           <Route path="/admin/waka/sarpras" element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={['admin', 'wakasar', 'kepsek']}>
               <WakaSarprasPortal />
             </ProtectedRoute>
           } />
           <Route path="/admin/waka/humas" element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={['admin', 'wakahum', 'kepsek']}>
               <WakaHumasPortal />
             </ProtectedRoute>
           } />
           <Route path="/admin/academic" element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={['admin', 'teacher']}>
               <AcademicPortal />
             </ProtectedRoute>
           } />
           <Route path="/admin/settings" element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={['admin']}>
               <AdminSettings />
             </ProtectedRoute>
           } />

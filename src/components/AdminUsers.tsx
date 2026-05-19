@@ -165,7 +165,7 @@ export const AdminUsers: React.FC = () => {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const userEmail = formData.email.includes('@') ? formData.email : `${formData.email}@e-smapna.sch.id`;
+      const userEmail = formData.email.includes('@') ? formData.email : `${formData.email}@smapna.com`;
       
       const payload = {
         name: formData.name,
@@ -309,6 +309,7 @@ export const AdminUsers: React.FC = () => {
   const handleSyncSingleUser = async (user: UserProfile) => {
     setIsSyncing(true);
     setSyncProgress(`Sinkronisasi ${user.name}...`);
+    let messageToShow = '';
     try {
       const response = await fetch('/api/admin/sync-users', {
         method: 'POST',
@@ -317,15 +318,24 @@ export const AdminUsers: React.FC = () => {
       });
       const results = await response.json();
       if (results[0]?.status === 'error') {
-        alert("Gagal: " + results[0].message);
+        messageToShow = "Gagal: " + results[0].message;
       } else {
-        alert(`Berhasil sinkronisasi ${user.name}! Sekarang bisa login.`);
+        const result = results[0];
+        const isAlreadyActive = result.status === 'exists';
+        messageToShow = isAlreadyActive 
+          ? `INFO: Akun ${user.name} sudah tersinkronisasi dan aktif!\n\nEmail: ${result.email}\nStatus: Siap digunakan.\n\nTidak perlu sinkronisasi ulang, user tinggal login.`
+          : `SINKRONISASI BERHASIL!\n\nAkun baru telah dibuat untuk ${user.name}.\nPassword default: smapna123\n\nUser sekarang bisa masuk ke aplikasi.`;
+        
+        fetchUsers(); // Refresh data to ensure UI is up to date and no duplicates shown
       }
     } catch (err: any) {
-      alert("Error: " + err.message);
+      messageToShow = "Error: " + err.message;
     } finally {
       setIsSyncing(false);
       setSyncProgress(null);
+      setTimeout(() => {
+        if (messageToShow) alert(messageToShow);
+      }, 300);
     }
   };
 
@@ -599,7 +609,7 @@ export const AdminUsers: React.FC = () => {
                         value={formData.email}
                         onChange={e => setFormData({...formData, email: e.target.value})}
                         className="w-full h-14 bg-slate-50 dark:bg-slate-900/50 border-none rounded-2xl px-4 font-bold text-sm focus:ring-2 focus:ring-blue-500"
-                        placeholder="username atau email@smapna.sh.id"
+                        placeholder="username atau email@smapna.com"
                       />
                       {editingUser && (
                         <p className="text-[9px] text-amber-600 font-bold mt-2 uppercase tracking-tight">

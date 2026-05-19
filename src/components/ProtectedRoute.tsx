@@ -1,11 +1,15 @@
 import React from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useConfig } from '../context/ConfigContext';
 import { motion } from 'motion/react';
-import { Settings, Lock, AlertCircle } from 'lucide-react';
+import { Settings, Lock, AlertCircle, Home } from 'lucide-react';
+import { UserRole } from '../types';
 
-export const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const ProtectedRoute: React.FC<{ 
+  children: React.ReactNode;
+  allowedRoles?: string[];
+}> = ({ children, allowedRoles }) => {
   const { user, profile, loading: authLoading } = useAuth();
   const { config, loading: configLoading } = useConfig();
   
@@ -18,7 +22,7 @@ export const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ childr
     if (loading) {
       timer = setTimeout(() => {
         setIsStuck(true);
-      }, 8000); // 8 seconds timeout
+      }, 10000); // 10 seconds timeout
     }
     return () => clearTimeout(timer);
   }, [loading]);
@@ -69,7 +73,7 @@ export const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ childr
   if (!user) return <Navigate to="/login" />;
 
   // Maintenance Mode Check
-  if (config.maintenanceMode && profile?.role !== 'admin') {
+  if (config.maintenanceMode && profile?.roles && !profile.roles.includes('admin')) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-mesh dark:bg-[#0F172A] p-8 text-center">
         <div className="w-24 h-24 bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 rounded-3xl flex items-center justify-center mb-8 shadow-xl">
@@ -85,6 +89,34 @@ export const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ childr
         </div>
       </div>
     );
+  }
+
+  // Role Based Authorization
+  if (allowedRoles && profile) {
+    const userRoles = profile.roles || [];
+    const hasAccess = userRoles.includes('admin' as UserRole) || 
+                     allowedRoles.some(role => userRoles.includes(role as UserRole));
+    
+    if (!hasAccess) {
+      return (
+        <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 p-8 text-center">
+          <div className="w-24 h-24 bg-rose-50 text-rose-600 rounded-[32px] flex items-center justify-center mb-8 shadow-lg">
+             <Lock size={48} />
+          </div>
+          <h1 className="text-2xl font-black text-slate-900 mb-2 uppercase italic">Akses Terbatas</h1>
+          <p className="text-slate-500 text-xs mb-8 max-w-[240px] font-medium leading-relaxed uppercase tracking-wider">
+            Akun Anda ({profile.name}) tidak memiliki izin untuk mengakses modul ini. Silakan hubungi Administrator.
+          </p>
+          <Link 
+            to="/" 
+            className="px-10 py-4 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-3"
+          >
+            <Home size={16} />
+            Kembali ke Beranda
+          </Link>
+        </div>
+      );
+    }
   }
   
   return (

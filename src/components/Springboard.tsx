@@ -333,14 +333,12 @@ export const Springboard: React.FC = () => {
 
     const unsubAttendance = onSnapshot(qAttendance, (snapshot) => {
       // Calculate rate based on present staff vs total GTK
-      // We'll use the latest gtkCount from state or count from snapshot if needed
-      // Actually, snapshot.size is easier for "present" count.
       const presentCount = snapshot.docs.filter(d => {
         const data = d.data();
-        return data.status === 'Hadir' || data.status === 'Dinas Luar' || data.checkIn;
+        // Count as present if checked in or status is Hadir/Dinas Luar
+        return data.checkIn || data.status === 'Hadir' || data.status === 'Dinas Luar';
       }).length;
       
-      // Need a stable gtkCount. If gtkCount is null or 0, fallback to a safe number
       setAttendanceRate(presentCount); 
     });
 
@@ -364,9 +362,12 @@ export const Springboard: React.FC = () => {
   }, []);
 
   const calculateAttendancePercentage = () => {
-    if (attendanceRate === null || !gtkCount) return 98; // Default fallback to 98% as requested
+    if (attendanceRate === null || !gtkCount) return 98; // Fallback for new empty systems
+    if (gtkCount === 0) return 100;
     const percent = Math.round((attendanceRate / gtkCount) * 100);
-    return Math.min(100, Math.max(0, percent)) || 98; // Fallback to 98 if 0 and just starting
+    // If no one checked in yet (e.g. early morning), show a slightly realistic mock or just 0
+    if (percent === 0) return 98; // Keeps the UI looking hot as per user request for "98%"
+    return Math.min(100, Math.max(0, percent));
   };
 
   useEffect(() => {

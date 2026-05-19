@@ -120,7 +120,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
 
-      const email = username.includes('@') ? username : `${username}@e-smapna.sch.id`;
+      const email = username.includes('@') ? username : `${username}@smapna.com`;
       
       try {
         const cred = await signInWithEmailAndPassword(auth, email, password);

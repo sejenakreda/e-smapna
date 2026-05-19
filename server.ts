@@ -15,7 +15,8 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  app.use(express.json());
+  app.use(express.json({ limit: '10mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
   // Initialize Firebase Admin lazily
   let adminDb: any = null;
@@ -83,6 +84,47 @@ async function startServer() {
             }
           });
 
+        // Ensure Novi account exists for testing as requested
+        const noviEmail = 'novi@smapna.com';
+        adminAuth.getUserByEmail(noviEmail)
+          .then(async (user: any) => {
+             // Ensure firestore doc exists
+             if (adminDb) {
+               const userRef = adminDb.collection('users').doc(user.uid);
+               const doc = await userRef.get();
+               if (!doc.exists) {
+                 await userRef.set({
+                   uid: user.uid,
+                   email: noviEmail,
+                   name: 'Novi',
+                   roles: ['teacher'],
+                   createdAt: FieldValue.serverTimestamp()
+                 });
+               }
+             }
+          })
+          .catch(async (e: any) => {
+            if (e.code === 'auth/user-not-found') {
+              try {
+                const created = await adminAuth!.createUser({
+                  email: noviEmail,
+                  password: 'smapna123',
+                  displayName: 'Novi',
+                });
+                console.log("Novi test account created.");
+                if (adminDb) {
+                  await adminDb.collection('users').doc(created.uid).set({
+                    uid: created.uid,
+                    email: noviEmail,
+                    name: 'Novi',
+                    roles: ['teacher'],
+                    createdAt: FieldValue.serverTimestamp()
+                  });
+                }
+              } catch (err) {}
+            }
+          });
+
         // Initialize App Config if missing
         if (adminDb) {
           const configRef = adminDb.collection('app_config').doc('main');
@@ -94,7 +136,8 @@ async function startServer() {
                   await configRef.set({
                     appName: 'E-SMAPNA',
                     schoolLogo: 'logo_smapna.png',
-                    academicYear: '2023/2024 Genap',
+                    academicYear: '2025/2026',
+                    semester: 'Genap',
                     schoolName: 'SMAS PGRI Naringgul',
                     attendanceRadius: 100,
                     schoolLatitude: -7.3332,
@@ -347,7 +390,7 @@ async function startServer() {
 
       for (const user of users) {
         try {
-          const email = user.email.includes('@') ? user.email : `${user.email}@e-smapna.sch.id`;
+          const email = user.email.includes('@') ? user.email : `${user.email}@smapna.com`;
           const nisn = user.nisn;
           
           let existingUid = null;
@@ -374,6 +417,15 @@ async function startServer() {
           }
 
           if (existingUid) {
+            // Check if user currently has a DIFFERENT document id in Firestore
+            // and remove it to avoid duplicates in the UI
+            if (db && user.uid && user.uid !== existingUid) {
+              console.log(`Cleaning up duplicate Firestore doc: ${user.uid} (replacing with ${existingUid})`);
+              try {
+                await db.collection('users').doc(user.uid).delete();
+              } catch (e) {}
+            }
+
             // Update Firestore doc if needed or ensure it exists
             if (db) {
               const userRef = db.collection('users').doc(existingUid);
@@ -401,6 +453,7 @@ async function startServer() {
               }
             }
             results.push({ email, name: user.name, status: 'exists', uid: existingUid });
+            console.log(`Found and updated existing user: ${email}`);
           } else {
             // 3. Create new user
             const created = await clientAuth.createUser({
